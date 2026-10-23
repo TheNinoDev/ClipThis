@@ -1,0 +1,5 @@
+*.bat
+ClipThis.exe
+src-tauri/target/
+src-tauri/gen/
+*.dmp
