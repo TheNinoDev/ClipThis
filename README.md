@@ -23,9 +23,9 @@ Clips are saved to `Music\ClipThis\<timestamp>\` with one file per application.
 - **WAV 32** — lossless, full precision
 - **WAV 16** — lossless for 16-bit sources, half the size
 - **FLAC** — lossless, ~3x smaller
-- **ADPCM** — custom 4-bit lossy, ~8x smaller, plays in any standard player
+- **ADPCM** — custom 4-bit lossy, ~8x smaller
 
-The ADPCM codec is standard IMA ADPCM (WAVE_FORMAT_IMA_ADPCM) and needs no installation — Windows Media Player, VLC and Audacity play it natively.
+Note: the modern Windows "Media Player" app does not support IMA ADPCM. Use VLC, classic Windows Media Player, or Audacity. The included `codec-installer.bat` (run as administrator) switches .wav files to classic Windows Media Player.
 
 ## License
 MIT

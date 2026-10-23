@@ -213,7 +213,7 @@ fn apply_update(url: String) -> Result<(), String> {
     let current_exe = std::env::current_exe().map_err(|e| e.to_string())?;
     let bat = std::env::temp_dir().join("clipthis_updater.bat");
     let content = format!(
-        "@echo off\r\nping -n 3 127.0.0.1 >nul\r\ncopy /Y \"{}\" \"{}\" >nul\r\nstart \"\" \"{}\"\r\ndel \"{}\"\r\ndel \"%~f0\"\r\n",
+        "@echo off\r\nping -n 5 127.0.0.1 >nul\r\ntaskkill /f /im clipthis.exe >nul 2>&1\r\nping -n 2 127.0.0.1 >nul\r\ncopy /Y \"{}\" \"{}\" >nul\r\nstart \"\" \"{}\"\r\ndel \"{}\"\r\ndel \"%~f0\"\r\n",
         temp.display(),
         current_exe.display(),
         current_exe.display(),

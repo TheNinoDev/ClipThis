@@ -2,9 +2,9 @@ use std::thread;
 use windows::core::{w, PCWSTR};
 use windows::Win32::Foundation::{COLORREF, HWND, LPARAM, LRESULT, RECT, WPARAM};
 use windows::Win32::Graphics::Gdi::{
-    BeginPaint, CreateFontW, CreateSolidBrush, DeleteObject, EndPaint, EnumDisplayMonitors,
-    FillRect, GetMonitorInfoW, SelectObject, SetBkMode, SetTextColor, TextOutW, HMONITOR,
-    MONITORINFO, PAINTSTRUCT, TRANSPARENT,
+    BeginPaint, CreateFontW, CreateRoundRectRgn, CreateSolidBrush, DeleteObject, EndPaint,
+    EnumDisplayMonitors, FillRect, GetMonitorInfoW, SelectObject, SetBkMode, SetTextColor,
+    SetWindowRgn, TextOutW, HMONITOR, MONITORINFO, PAINTSTRUCT, TRANSPARENT,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, KillTimer, PostMessageW,
@@ -115,6 +115,8 @@ unsafe extern "system" fn monitor_enum_proc(
             None,
             None,
         ) {
+            let rgn = CreateRoundRectRgn(0, 0, 401, 45, 12, 12);
+            let _ = SetWindowRgn(hwnd, rgn, true);
             let _ = SetLayeredWindowAttributes(hwnd, COLORREF(0), 235, LWA_ALPHA);
             TOAST_HWNS.lock().unwrap().push(hwnd.0 as usize);
         }
