@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>ClipThis</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #15161c;
+    --surface: #1b1d26;
+    --surface-2: #21232e;
+    --border: #2b2e3b;
+    --text: #e8e9ee;
+    --muted: #8d92a5;
+    --accent: #5b8cff;
+    --accent-soft: rgba(91, 140, 255, 0.14);
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%; width: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+  ::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  * { scrollbar-width: none; }
+
+  .app { display: flex; flex-direction: column; height: 100%; }
+
+  .titlebar {
+    display: flex; align-items: center; gap: 10px;
+    height: 40px; padding: 0 8px 0 14px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex: 0 0 auto;
+  }
+  .titlebar .brand {
+    font-size: 12.5px; font-weight: 600; letter-spacing: .2px; color: var(--text);
+  }
+  .titlebar .spacer { flex: 1; height: 100%; }
+  .iconbtn {
+    width: 30px; height: 26px; border: 1px solid transparent; border-radius: 7px;
+    background: transparent; color: var(--muted); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .12s ease, color .12s ease;
+  }
+  .iconbtn:hover { background: var(--surface-2); color: var(--text); }
+  .iconbtn svg { width: 14px; height: 14px; }
+
+  .content { flex: 1; padding: 14px 16px 12px; overflow: hidden; display: flex; flex-direction: column; gap: 4px; }
+
+  .row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 9px 10px; border-radius: var(--radius);
+    transition: background .12s ease;
+  }
+  .row:hover { background: rgba(255,255,255,0.025); }
+  .row .lead {
+    width: 132px; flex: 0 0 132px;
+    font-size: 12.5px; color: var(--text); font-weight: 500;
+  }
+  .row .lead small { display: block; font-size: 10.5px; color: var(--muted); font-weight: 400; margin-top: 1px; }
+  .row .ctl { flex: 1; min-width: 0; display: flex; justify-content: flex-end; align-items: center; gap: 6px; }
+
+  input[type="text"], select {
+    width: 100%; height: 32px; padding: 0 10px;
+    background: var(--surface-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    font: inherit; font-size: 12.5px; outline: none;
+    transition: border-color .12s ease, box-shadow .12s ease;
+  }
+  input[type="text"]:focus, select:focus {
+    border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  input[type="text"]::placeholder { color: #6a6f80; }
+  input[type="text"][readonly] { cursor: pointer; }
+  select {
+    appearance: none; -webkit-appearance: none;
+    padding-right: 28px; cursor: pointer;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none' stroke='%238d92a5' stroke-width='1.6'><path d='M1 1l4 4 4-4'/></svg>");
+    background-repeat: no-repeat; background-position: right 10px center;
+  }
+  select option { background: var(--surface-2); color: var(--text); }
+
+  .seg { display: inline-flex; padding: 3px; gap: 2px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; }
+  .seg button {
+    border: none; background: transparent; color: var(--muted);
+    font: inherit; font-size: 11.5px; padding: 5px 9px; border-radius: 6px; cursor: pointer;
+    transition: background .12s ease, color .12s ease;
+  }
+  .seg button.on { background: var(--accent); color: #fff; font-weight: 600; }
+
+  .switch {
+    position: relative; width: 38px; height: 21px; flex: 0 0 38px;
+    border-radius: 999px; border: 1px solid var(--border);
+    background: var(--surface-2); cursor: pointer; padding: 0;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  .switch::after {
+    content: ""; position: absolute; top: 2px; left: 2px;
+    width: 15px; height: 15px; border-radius: 50%;
+    background: #8d92a5; transition: transform .15s ease, background .15s ease;
+  }
+  .switch.on { background: var(--accent); border-color: var(--accent); }
+  .switch.on::after { transform: translateX(17px); background: #fff; }
+
+  .btn {
+    height: 30px; padding: 0 12px; border-radius: 8px; cursor: pointer;
+    background: var(--surface-2); color: var(--text);
+    border: 1px solid var(--border); font: inherit; font-size: 12px;
+    white-space: nowrap; transition: background .12s ease, border-color .12s ease;
+  }
+  .btn:hover { background: #272a37; border-color: #383c4d; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .btn.primary:hover { background: #4d7ef2; border-color: #4d7ef2; }
+
+  .divider { height: 1px; background: var(--border); margin: 8px 10px; }
+
+  .footer { display: flex; align-items: center; gap: 8px; padding: 8px 10px 2px; }
+  .footer .status { flex: 1; font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .footer .status.ok { color: #56c271; }
+  .footer .status.err { color: #e56767; }
+  .tabs { display: flex; gap: 6px; padding: 8px 10px 2px; }
+  .tab { border: 1px solid var(--border); background: var(--panel2); color: var(--muted); font: inherit; font-size: 11.5px; padding: 4px 12px; border-radius: 6px; cursor: pointer; }
+  .tab.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .capturing { margin-top: 6px; padding: 0 10px; font-size: 10.5px; color: #6a6f80; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ver { padding: 0 10px 6px; font-size: 10px; color: #6a6f80; opacity: .7; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="titlebar" data-tauri-drag-region>
+    <span class="brand" data-tauri-drag-region>ClipThis</span>
+    <div class="spacer" data-tauri-drag-region></div>
+    <button class="iconbtn" id="minbtn" title="Minimize to tray">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" data-tab="settings">Settings</button>
+    <button class="tab" data-tab="status">Status</button>
+  </div>
+
+  <div class="content tabpanel" id="tab-settings">
+    <div class="row">
+      <div class="lead">Hotkey<small>Press to record</small></div>
+      <div class="ctl">
+        <input type="text" id="hotkey" readonly placeholder="Click, then press keys" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="lead">Clip length<small>Seconds kept</small></div>
+      <div class="ctl">
+        <select id="clip_seconds">
+          <option value="10">10 seconds</option>
+          <option value="15">15 seconds</option>
+          <option value="30">30 seconds</option>
+          <option value="60">60 seconds</option>
+          <option value="120">120 seconds</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="lead">Format<small>Per app file</small></div>
+      <div class="ctl">
+        <div class="seg" id="format">
+          <button data-v="wav32" title="WAV float32 — 384 KB/s, untouched capture">WAV 32</button>
+          <button data-v="wav16" title="WAV PCM16 — 192 KB/s, half the size">WAV 16</button>
+          <button data-v="flac" title="FLAC lossless — ~125 KB/s">FLAC</button>
+          <button data-v="adpcm" title="ADPCM 4-bit lossy — 48 KB/s, 4:1 vs PCM16">ADPCM</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="lead">Output folder<small>Clip destination</small></div>
+      <div class="ctl">
+        <input type="text" id="output_dir" />
+        <button class="btn" id="browse">Browse</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="row">
+      <div class="lead">Autostart<small>Launch on login</small></div>
+      <div class="ctl"><button class="switch" id="autostart" role="switch" aria-checked="false"></button></div>
+    </div>
+
+    <div class="row">
+      <div class="lead">Notify<small>Toast on each clip</small></div>
+      <div class="ctl"><button class="switch" id="notify_clip" role="switch" aria-checked="false"></button></div>
+    </div>
+    <div class="row">
+      <div class="lead">Mic<small>Record microphone as own track</small></div>
+      <div class="ctl"><button class="switch" id="capture_mic" role="switch" aria-checked="false"></button></div>
+    </div>
+
+  </div>
+
+  <div class="tabpanel" id="tab-status" style="display:none">
+    <div class="capturing" id="procs"></div>
+    <div class="ver" id="ver"></div>
+  </div>
+
+    <div class="footer">
+      <div class="status" id="status">Ready</div>
+      <button class="btn" id="clip">Clip now</button>
+      <button class="btn" id="update">Update</button>
+      <button class="btn primary" id="save">Save</button>
+    </div>
+</div>
+
+<script>
+  const { invoke } = window.__TAURI__.core;
+
+  const $ = (id) => document.getElementById(id);
+  const setStatus = (msg, kind) => {
+    const el = $('status');
+    el.textContent = msg;
+    el.className = 'status' + (kind ? ' ' + kind : '');
+  };
+
+  // window dragging (frameless)
+  const titlebar = document.querySelector('.titlebar');
+  titlebar.addEventListener('mousedown', (e) => {
+    if (e.target.closest('button')) return;
+    if (e.button !== 0) return;
+    try { window.__TAURI__.window.getCurrentWindow().startDragging(); } catch (err) {}
+  });
+
+  // switches
+  function bindSwitch(id, initial) {
+    const el = $(id);
+    el.classList.toggle('on', !!initial);
+    el.setAttribute('aria-checked', initial ? 'true' : 'false');
+    el.addEventListener('click', () => {
+      const on = !el.classList.contains('on');
+      el.classList.toggle('on', on);
+      el.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    return () => el.classList.contains('on');
+  }
+
+  // format segmented control
+  function bindSeg(id) {
+    const seg = $(id);
+    seg.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      [...seg.children].forEach((b) => b.classList.toggle('on', b === btn));
+    });
+    return () => {
+      const on = seg.querySelector('button.on');
+      return on ? on.dataset.v : 'wav';
+    };
+  }
+
+  const isAutostart = bindSwitch('autostart', false);
+  const isNotify = bindSwitch('notify_clip', true);
+  const isMic = bindSwitch('capture_mic', false);
+  const getFormat = bindSeg('format');
+
+  // hotkey capture
+  const hotkeyInput = $('hotkey');
+  let capturing = false;
+  let savedHotkey = '';
+  hotkeyInput.addEventListener('focus', () => {
+    capturing = true;
+    savedHotkey = hotkeyInput.value;
+    hotkeyInput.value = 'Press keys...';
+  });
+  hotkeyInput.addEventListener('blur', () => {
+    capturing = false;
+    if (hotkeyInput.value === 'Press keys...') hotkeyInput.value = savedHotkey;
+  });
+  window.addEventListener('keydown', (e) => {
+    if (!capturing) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const parts = [];
+    if (e.ctrlKey) parts.push('Ctrl');
+    if (e.shiftKey) parts.push('Shift');
+    if (e.altKey) parts.push('Alt');
+    if (e.metaKey) parts.push('Win');
+    const key = e.key;
+    if (!['Control', 'Shift', 'Alt', 'Meta'].includes(key)) {
+      let k = key;
+      if (k.length === 1) k = k.toUpperCase();
+      if (k === ' ') k = 'Space';
+      parts.push(k);
+      hotkeyInput.value = parts.join('+');
+      hotkeyInput.blur();
+    }
+  }, true);
+
+  async function load() {
+    const s = await invoke('get_settings');
+    hotkeyInput.value = s.hotkey;
+    $('output_dir').value = s.output_dir;
+    $('clip_seconds').value = String(s.clip_seconds || 30);
+    const fmt = s.format === 'wav' ? 'wav32' : s.format;
+    [...$('format').children].forEach((b) => b.classList.toggle('on', b.dataset.v === fmt));
+    $('autostart').classList.toggle('on', !!s.autostart);
+    $('autostart').setAttribute('aria-checked', s.autostart ? 'true' : 'false');
+    $('notify_clip').classList.toggle('on', s.notify_clip !== false);
+    $('notify_clip').setAttribute('aria-checked', s.notify_clip !== false ? 'true' : 'false');
+    $('capture_mic').classList.toggle('on', !!s.capture_mic);
+    $('capture_mic').setAttribute('aria-checked', s.capture_mic ? 'true' : 'false');
+  }
+
+  async function refreshProcs() {
+    const ps = await invoke('list_processes');
+    $('procs').textContent = ps.length ? 'Capturing: ' + ps.map((p) => p.name).join(', ') : 'Waiting for audio sources…';
+  }
+
+  // ---- idle auto-hide -----------------------------------------------------
+  // After 60 s without any input the UI releases its WebView2 tree entirely
+  // (~60-90 MB). Audio capture is backend-side and keeps running.
+  const IDLE_MS = 60000;
+  let lastActive = Date.now();
+  let busy = 0;
+  const bump = () => { lastActive = Date.now(); };
+  ['mousemove', 'mousedown', 'pointerdown', 'wheel', 'keydown', 'touchstart', 'focus'].forEach((ev) =>
+    window.addEventListener(ev, bump, { passive: true })
+  );
+  setInterval(() => {
+    if (busy > 0) { lastActive = Date.now(); return; }
+    if (Date.now() - lastActive >= IDLE_MS) {
+      lastActive = Date.now();
+      invoke('hide_to_tray');
+    }
+  }, 2000);
+
+  $('minbtn').onclick = () => invoke('hide_to_tray');
+
+  $('browse').onclick = async () => {
+    busy++;
+    try {
+      const folder = await invoke('pick_folder');
+      if (folder) $('output_dir').value = folder;
+    } finally { busy--; }
+  };
+
+  $('save').onclick = async () => {
+    busy++;
+    const settings = {
+      hotkey: hotkeyInput.value,
+      output_dir: $('output_dir').value,
+      format: getFormat(),
+      autostart: isAutostart(),
+      notify_clip: isNotify(),
+      capture_mic: isMic(),
+      clip_seconds: parseInt($('clip_seconds').value, 10),
+    };
+    try {
+      await invoke('set_settings', { settings });
+      setStatus('Settings saved', 'ok');
+    } catch (e) {
+      setStatus('Save failed: ' + e, 'err');
+    } finally { busy--; }
+  };
+
+  $('clip').onclick = async () => {
+    busy++;
+    setStatus('Clipping…');
+    try {
+      const folder = await invoke('trigger_clip');
+      setStatus('Clipped to ' + folder, 'ok');
+    } catch (e) {
+      setStatus('Clip failed: ' + e, 'err');
+    } finally { busy--; }
+  };
+
+  $('update').onclick = async () => {
+    busy++;
+    setStatus('Checking for updates…');
+    try {
+      const info = await invoke('check_update');
+      if (!info) { setStatus('Already up to date', 'ok'); return; }
+      if (!confirm('Update to ' + info.latest + '?\n\n' + info.notes)) return;
+      setStatus('Downloading ' + info.latest + '…');
+      await invoke('apply_update', { url: info.url });
+    } catch (e) {
+      setStatus('Update failed: ' + e, 'err');
+    } finally { busy--; }
+  };
+
+  // version display
+  invoke('get_version').then((v) => { $('ver').textContent = 'ClipThis v' + v; }).catch(() => {});
+
+  document.querySelectorAll('.tab').forEach((t) => {
+    t.onclick = () => {
+      document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('on', x === t));
+      document.getElementById('tab-settings').style.display = t.dataset.tab === 'settings' ? '' : 'none';
+      document.getElementById('tab-status').style.display = t.dataset.tab === 'status' ? '' : 'none';
+    };
+  });
+  setInterval(refreshProcs, 3000);
+</script>
+</body>
+</html>
