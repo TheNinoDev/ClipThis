@@ -8,10 +8,9 @@ use windows::Win32::Graphics::Gdi::{
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, KillTimer, PostMessageW,
-    RegisterClassExW, SetLayeredWindowAttributes, SetTimer, ShowWindow, TranslateMessage, MSG,
+    RegisterClassExW, SetLayeredWindowAttributes, SetTimer, ShowWindow, TranslateMessage,
     SW_HIDE, SW_SHOWNOACTIVATE, WM_APP, WM_DESTROY, WM_PAINT, WM_TIMER, WNDCLASSEXW,
-    WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP, HWND_TOPMOST,
-    LWA_ALPHA,
+    WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP, LWA_ALPHA,
 };
 
 const CLASS_NAME: PCWSTR = w!("ClipThisToast");
