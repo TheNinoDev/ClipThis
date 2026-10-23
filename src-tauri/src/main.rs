@@ -107,7 +107,6 @@ struct AppState {
     settings: Mutex<Settings>,
     shared_settings: Arc<Mutex<Settings>>,
     manager: Arc<CaptureManager>,
-    clip_tx: mpsc::Sender<()>,
     hotkey_tx: mpsc::Sender<String>,
     toast: toast::ToastService,
 }
@@ -503,9 +502,8 @@ fn main() {
         settings: Mutex::new(settings),
         shared_settings,
         manager,
-        clip_tx,
         hotkey_tx,
-        toast: toast.clone(),
+        toast,
     };
 
     tauri::Builder::default()

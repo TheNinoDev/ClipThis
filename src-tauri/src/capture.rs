@@ -60,8 +60,6 @@ pub fn default_output_dir() -> String {
 }
 
 pub struct RingBuffer {
-    pub name: String,
-    pub pid: u32,
     /// VecDeque, not Vec: trimming the oldest audio must be O(chunk), not a
     /// memmove of the whole multi-megabyte buffer on every incoming packet.
     pub samples: VecDeque<i16>,
@@ -75,7 +73,6 @@ pub struct CaptureEntry {
     pub name: String,
     pub buf: Arc<Mutex<RingBuffer>>,
     pub stop: Arc<AtomicBool>,
-    pub handle: Option<thread::JoinHandle<()>>,
 }
 
 pub struct CaptureManager {
@@ -113,8 +110,6 @@ impl CaptureManager {
                         if !map.contains_key(&p.pid) {
                             let cs = *m2.clip_seconds.lock().unwrap();
                             let buf = Arc::new(Mutex::new(RingBuffer {
-                                name: p.name.clone(),
-                                pid: p.pid,
                                 samples: VecDeque::new(),
                                 sample_rate: 48000,
                                 channels: 2,
@@ -125,7 +120,7 @@ impl CaptureManager {
                             let stop2 = stop.clone();
                             let name = p.name.clone();
                             let pid = p.pid;
-                            let handle = thread::spawn(move || {
+                            thread::spawn(move || {
                                 run_capture(pid, name, buf2, stop2);
                             });
                             map.insert(p.pid, CaptureEntry {
@@ -133,7 +128,6 @@ impl CaptureManager {
                                 name: p.name.clone(),
                                 buf,
                                 stop,
-                                handle: Some(handle),
                             });
                         }
                     }
@@ -165,8 +159,6 @@ impl CaptureManager {
         let stop = Arc::new(AtomicBool::new(false));
         let stop2 = stop.clone();
         let buf = Arc::new(Mutex::new(RingBuffer {
-            name: "Microphone".to_string(),
-            pid: 0,
             samples: VecDeque::new(),
             sample_rate: 48000,
             channels: 1,
