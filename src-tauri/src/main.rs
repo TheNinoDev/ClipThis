@@ -2,6 +2,7 @@
 
 mod capture;
 mod codec;
+mod codec_aac;
 mod hotkey;
 mod toast;
 
@@ -16,7 +17,7 @@ use tauri::{
     menu::{Menu, MenuItem},
 };
 use tauri_plugin_dialog::DialogExt;
-use tauri_plugin_notification::NotificationExt;
+// use tauri_plugin_notification::NotificationExt;
 
 #[cfg(windows)]
 fn ensure_start_menu_shortcut() {
@@ -137,13 +138,7 @@ fn trigger_clip(state: State<AppState>) -> Result<String, String> {
     let settings = state.settings.lock().unwrap().clone();
     let folder = state.manager.clip_all(&settings)?;
     if settings.notify_clip {
-        if let Some(app) = APP_HANDLE.lock().unwrap().clone() {
-            let body = format!("Clip saved to {}", folder);
-            let app2 = app.clone();
-            let _ = app.run_on_main_thread(move || {
-                let _ = app2.notification().builder().title("ClipThis").body(body).show();
-            });
-        }
+        state.toast.show(&format!("Clip saved to {}", folder));
     }
     Ok(folder)
 }
@@ -339,12 +334,6 @@ fn hide_and_release(window: &tauri::Window) {
     WANT_VISIBLE.store(false, Ordering::SeqCst);
     remember_position(window);
     let app = window.app_handle().clone();
-    let _ = app
-        .notification()
-        .builder()
-        .title("ClipThis")
-        .body("Running in tray. Click the tray icon to reopen.")
-        .show();
     let _ = window.hide();
     std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_millis(80));
@@ -391,6 +380,9 @@ fn spawn_show_signal_listener(app: tauri::AppHandle) {
 }
 
 fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    let is_autostart = args.iter().any(|a| a == "--autostart");
+
     // single instance
     #[cfg(windows)]
     {
@@ -508,9 +500,9 @@ fn main() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_notification::init())
+        // .plugin(tauri_plugin_notification::init())
         .manage(app_state)
-        .setup(|app| {
+        .setup(move |app| {
             *APP_HANDLE.lock().unwrap() = Some(app.handle().clone());
             #[cfg(windows)]
             {
@@ -546,6 +538,10 @@ fn main() {
                 })
                 .build(app)?;
             spawn_show_signal_listener(app.handle().clone());
+            // User start → show window. Autostart → stay in tray.
+            if !is_autostart {
+                open_window(app.handle());
+            }
             Ok(())
         })
         .on_window_event(|window, event| {

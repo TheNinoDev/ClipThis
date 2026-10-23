@@ -242,7 +242,7 @@ impl CaptureManager {
                 continue;
             }
             let safe_name: String = name.chars().map(|c| if c.is_alphanumeric() || c == '_' || c == '-' { c } else { '_' }).collect();
-            let ext = if settings.format == "flac" { "flac" } else { "wav" };
+            let ext = if settings.format == "flac" { "flac" } else if settings.format == "aac" { "m4a" } else { "wav" };
             let path = folder.join(format!("{}_{}_{}s.{}", safe_name, pid, settings.clip_seconds, ext));
             match settings.format.as_str() {
                 "flac" => {
@@ -253,6 +253,7 @@ impl CaptureManager {
                 }
                 "wav16" => crate::codec::write_wav_i16(&path, &samples, sr, ch)?,
                 "adpcm" => crate::codec::write_ima_adpcm(&path, &samples, sr, ch)?,
+                "aac" => crate::codec_aac::write_aac(&path, &samples, sr, ch)?,
                 _ => crate::codec::write_wav_f32(&path, &samples, sr, ch)?,
             }
         }
@@ -272,7 +273,7 @@ impl CaptureManager {
                     };
                     if !samples.is_empty() {
                         let safe = "Microphone";
-                        let ext = if settings.format == "flac" { "flac" } else { "wav" };
+                        let ext = if settings.format == "flac" { "flac" } else if settings.format == "aac" { "m4a" } else { "wav" };
                         let path = folder.join(format!("{}_0_{}s.{}", safe, settings.clip_seconds, ext));
                         match settings.format.as_str() {
                             "flac" => {
@@ -283,6 +284,7 @@ impl CaptureManager {
                             }
                             "wav16" => crate::codec::write_wav_i16(&path, &samples, sr, ch)?,
                             "adpcm" => crate::codec::write_ima_adpcm(&path, &samples, sr, ch)?,
+                            "aac" => crate::codec_aac::write_aac(&path, &samples, sr, ch)?,
                             _ => crate::codec::write_wav_f32(&path, &samples, sr, ch)?,
                         }
                     }
@@ -351,7 +353,7 @@ pub fn set_autostart(enabled: bool) -> Result<(), String> {
         }
         if enabled {
             let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-            let valstr = format!("\"{}\"\0", exe.display());
+            let valstr = format!("\"{}\" --autostart\0", exe.display());
             let val: Vec<u16> = valstr.encode_utf16().collect();
             let name: Vec<u16> = "ClipThis\0".encode_utf16().collect();
             let bytes: Vec<u8> = val.iter().flat_map(|c| c.to_le_bytes()).collect();
