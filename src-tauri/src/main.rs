@@ -204,19 +204,53 @@ fn apply_update(url: String) -> Result<(), String> {
     let mut reader = resp.into_reader();
     let mut file = std::fs::File::create(&temp).map_err(|e| e.to_string())?;
     std::io::copy(&mut reader, &mut file).map_err(|e| e.to_string())?;
-    // write an updater bat that swaps the exe after we exit
     let current_exe = std::env::current_exe().map_err(|e| e.to_string())?;
-    let bat = std::env::temp_dir().join("clipthis_updater.bat");
-    let content = format!(
-        "@echo off\r\nping -n 5 127.0.0.1 >nul\r\ntaskkill /f /im clipthis.exe >nul 2>&1\r\nping -n 2 127.0.0.1 >nul\r\ncopy /Y \"{}\" \"{}\" >nul\r\nstart \"\" \"{}\"\r\ndel \"{}\"\r\ndel \"%~f0\"\r\n",
-        temp.display(),
-        current_exe.display(),
-        current_exe.display(),
-        temp.display()
+
+    // PowerShell script: shows a small dark "Updating…" window, runs the
+    // swap bat hidden, then closes the window and starts the new exe.
+    let ps1 = std::env::temp_dir().join("clipthis_updater.ps1");
+    let ps1_content = format!(
+        "Add-Type -AssemblyName System.Windows.Forms\r\n\
+        Add-Type -AssemblyName System.Drawing\r\n\
+        $f = New-Object Windows.Forms.Form\r\n\
+        $f.Text = 'ClipThis'\r\n\
+        $f.Size = New-Object Drawing.Size(320,100)\r\n\
+        $f.StartPosition = 'CenterScreen'\r\n\
+        $f.FormBorderStyle = 'FixedToolWindow'\r\n\
+        $f.BackColor = [Drawing.Color]::FromArgb(27,29,38)\r\n\
+        $f.ShowInTaskbar = $false\r\n\
+        $f.TopMost = $true\r\n\
+        $l = New-Object Windows.Forms.Label\r\n\
+        $l.Text = 'Updating ClipThis...'\r\n\
+        $l.ForeColor = [Drawing.Color]::FromArgb(232,233,238)\r\n\
+        $l.Font = New-Object Drawing.Font('Segoe UI',12)\r\n\
+        $l.AutoSize = $true\r\n\
+        $l.Location = New-Object Drawing.Point(24,28)\r\n\
+        $f.Controls.Add($l)\r\n\
+        $f.Show()\r\n\
+        [Windows.Forms.Application]::DoEvents()\r\n\
+        Start-Sleep -Seconds 3\r\n\
+        Stop-Process -Name ClipThis -Force -ErrorAction SilentlyContinue 2>$null\r\n\
+        Start-Sleep -Seconds 2\r\n\
+        Copy-Item '{}' '{}' -Force\r\n\
+        Remove-Item '{}' -Force -ErrorAction SilentlyContinue\r\n\
+        $f.Close()\r\n\
+        Start-Process -FilePath '{}'\r\n\
+        Remove-Item $MyInvocation.MyCommand.Source -Force -ErrorAction SilentlyContinue\r\n",
+        temp.display().to_string().replace('\'', "''"),
+        current_exe.display().to_string().replace('\'', "''"),
+        temp.display().to_string().replace('\'', "''"),
+        current_exe.display().to_string().replace('\'', "''"),
     );
-    std::fs::write(&bat, content).map_err(|e| e.to_string())?;
-    std::process::Command::new("cmd")
-        .args(["/C", "start", "", bat.to_str().unwrap()])
+    std::fs::write(&ps1, ps1_content).map_err(|e| e.to_string())?;
+
+    std::process::Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-WindowStyle", "Hidden",
+            "-File", ps1.to_str().unwrap(),
+        ])
         .spawn()
         .map_err(|e| e.to_string())?;
     std::process::exit(0);
