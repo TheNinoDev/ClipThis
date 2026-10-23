@@ -101,6 +101,7 @@ fn ima_encode(sample: i32, predictor: &mut i32, index: &mut i32) -> u8 {
     nibble
 }
 
+#[cfg(test)]
 fn ima_decode(nibble: u8, predictor: &mut i32, index: &mut i32) -> i32 {
     let step = IMA_STEP_TABLE[*index as usize];
     let mut vpdiff = step >> 3;

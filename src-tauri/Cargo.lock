@@ -624,7 +624,7 @@ dependencies = [
 
 [[package]]
 name = "clipthis"
-version = "0.1.0"
+version = "1.0.2"
 dependencies = [
  "chrono",
  "dirs 6.0.0",
