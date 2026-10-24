@@ -15,9 +15,13 @@ use flexaudio_encode::FlacWriter;
 
 #[derive(Clone, Serialize, serde::Deserialize)]
 pub struct Settings {
+    #[serde(default = "default_hotkey")]
     pub hotkey: String,
+    #[serde(default = "default_output_dir")]
     pub output_dir: String,
+    #[serde(default = "default_format")]
     pub format: String,
+    #[serde(default)]
     pub autostart: bool,
     #[serde(default = "default_clip_seconds")]
     pub clip_seconds: u32,
@@ -26,6 +30,9 @@ pub struct Settings {
     #[serde(default)]
     pub capture_mic: bool,
 }
+
+fn default_hotkey() -> String { "Ctrl+Shift+F9".to_string() }
+fn default_format() -> String { "flac".to_string() }
 
 fn default_notify_clip() -> bool {
     true
@@ -49,6 +56,7 @@ impl Default for Settings {
     }
 }
 
+#[allow(dead_code)]
 pub fn default_output_dir() -> String {
     if let Some(d) = dirs::audio_dir() {
         d.join("ClipThis").to_string_lossy().to_string()

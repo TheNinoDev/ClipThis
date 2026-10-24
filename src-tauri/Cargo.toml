@@ -1,6 +1,6 @@
 [package]
 name = "clipthis"
-version = "1.0.8"
+version = "1.0.9"
 description = "Clip last 30s of per-app audio"
 edition = "2021"
 rust-version = "1.85"
@@ -24,6 +24,7 @@ hound = "3.5"
 global-hotkey = "0.9"
 dirs = "6"
 ureq = { version = "2", features = ["json"] }
+rodio = { version = "0.22", default-features = true, features = ["symphonia-adpcm"] }
 windows = { version = "0.58", features = [
   "Win32_Foundation",
   "Win32_Graphics_Gdi",
@@ -36,6 +37,7 @@ windows = { version = "0.58", features = [
   "Win32_UI_WindowsAndMessaging",
   "Win32_UI_Shell",
   "Win32_UI_Shell_PropertiesSystem",
+  "Win32_Media_Speech",
   "Win32_Storage_EnhancedStorage",
 ] }
 

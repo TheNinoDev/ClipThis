@@ -8,9 +8,9 @@ use windows::Win32::Graphics::Gdi::{
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, KillTimer, PostMessageW,
-    RegisterClassExW, SetLayeredWindowAttributes, SetTimer, ShowWindow, TranslateMessage,
+    RegisterClassExW, SetTimer, ShowWindow, TranslateMessage,
     SW_HIDE, SW_SHOWNOACTIVATE, WM_APP, WM_DESTROY, WM_PAINT, WM_TIMER, WNDCLASSEXW,
-    WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP, LWA_ALPHA,
+    WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
 };
 
 const CLASS_NAME: PCWSTR = w!("ClipThisToast");
@@ -48,16 +48,16 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             let hdc = BeginPaint(hwnd, &mut ps);
             let mut rect = RECT::default();
             let _ = windows::Win32::UI::WindowsAndMessaging::GetClientRect(hwnd, &mut rect);
-            let brush = CreateSolidBrush(COLORREF(0x002e1e1e));
+            let brush = CreateSolidBrush(COLORREF(0x00201f2a));
             FillRect(hdc, &rect, brush);
             SetBkMode(hdc, TRANSPARENT);
             SetTextColor(hdc, COLORREF(0x00ffffff));
-            let font = CreateFontW(16, 0, 0, 0, 600, 0, 0, 0, 0, 0, 0, 0, 0, w!("Segoe UI"));
+            let font = CreateFontW(15, 0, 0, 0, 600, 0, 0, 0, 0, 0, 0, 0, 0, w!("Segoe UI"));
             let hgdi: windows::Win32::Graphics::Gdi::HGDIOBJ = font.into();
             let old = SelectObject(hdc, hgdi);
             let text = TOAST_TEXT.lock().unwrap().clone();
             let wide: Vec<u16> = text.encode_utf16().collect();
-            let _ = TextOutW(hdc, 12, 12, &wide);
+            let _ = TextOutW(hdc, 16, 17, &wide);
             let _ = SelectObject(hdc, old);
             let hgdi_font: windows::Win32::Graphics::Gdi::HGDIOBJ = font.into();
             let _ = DeleteObject(hgdi_font);
@@ -102,22 +102,21 @@ unsafe extern "system" fn monitor_enum_proc(
     };
     if GetMonitorInfoW(hmon, &mut info).as_bool() {
         if let Ok(hwnd) = CreateWindowExW(
-            WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_LAYERED,
+            WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
             CLASS_NAME,
             w!(""),
             WS_POPUP,
             info.rcMonitor.left + 16,
             info.rcMonitor.top + 16,
-            400,
-            44,
+            420,
+            56,
             None,
             None,
             None,
             None,
         ) {
-            let rgn = CreateRoundRectRgn(0, 0, 401, 45, 12, 12);
+            let rgn = CreateRoundRectRgn(0, 0, 421, 57, 14, 14);
             let _ = SetWindowRgn(hwnd, rgn, true);
-            let _ = SetLayeredWindowAttributes(hwnd, COLORREF(0), 235, LWA_ALPHA);
             TOAST_HWNS.lock().unwrap().push(hwnd.0 as usize);
         }
     }
@@ -130,7 +129,7 @@ fn run() {
             cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
             lpfnWndProc: Some(wnd_proc),
             lpszClassName: CLASS_NAME,
-            hbrBackground: CreateSolidBrush(COLORREF(0x002e1e1e)),
+            hbrBackground: CreateSolidBrush(COLORREF(0x00201f2a)),
             ..Default::default()
         };
         RegisterClassExW(&wc);

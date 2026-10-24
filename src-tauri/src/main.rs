@@ -102,7 +102,41 @@ struct ProcessInfoDto {
     name: String,
 }
 
+#[derive(serde::Serialize, Clone)]
+struct ClipFileDto {
+    name: String,
+    path: String,
+    size: u64,
+    duration_ms: u64,
+    waveform: Vec<u8>,
+}
+
+#[derive(serde::Serialize, Clone)]
+struct PlaybackStateDto {
+    path: Option<String>,
+    position_ms: u64,
+    duration_ms: u64,
+    playing: bool,
+}
+
+struct ActivePlayer {
+    path: String,
+    duration_ms: u64,
+    player: rodio::Player,
+}
+
+#[derive(serde::Serialize, Clone)]
+struct ClipFolderDto {
+    name: String,
+    path: String,
+    files: Vec<ClipFileDto>,
+}
+
 static APP_HANDLE: Mutex<Option<tauri::AppHandle>> = Mutex::new(None);
+static TRANSCRIBE_STOP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static PLAYER_STREAM: std::sync::OnceLock<std::sync::Mutex<Option<rodio::MixerDeviceSink>>> = std::sync::OnceLock::new();
+static CURRENT_PLAYER: std::sync::OnceLock<std::sync::Mutex<Option<ActivePlayer>>> = std::sync::OnceLock::new();
+static CLIP_CACHE: std::sync::OnceLock<std::sync::Mutex<std::collections::HashMap<String, (u64, Vec<u8>)>>> = std::sync::OnceLock::new();
 
 struct AppState {
     settings: Mutex<Settings>,
@@ -134,11 +168,28 @@ fn set_settings(state: State<AppState>, settings: Settings) -> Result<(), String
 }
 
 #[tauri::command]
-fn trigger_clip(state: State<AppState>) -> Result<String, String> {
+fn reset_settings(state: State<AppState>) -> Result<Settings, String> {
+    let defaults = Settings::default();
+    capture::set_autostart(defaults.autostart)?;
+    state.manager.set_clip_seconds(defaults.clip_seconds);
+    state.manager.stop_mic();
+    let _ = state.hotkey_tx.send(defaults.hotkey.clone());
+    *state.settings.lock().unwrap() = defaults.clone();
+    *state.shared_settings.lock().unwrap() = defaults.clone();
+    save_settings(&defaults);
+    Ok(defaults)
+}
+
+#[tauri::command]
+async fn trigger_clip(state: State<'_, AppState>) -> Result<String, String> {
     let settings = state.settings.lock().unwrap().clone();
-    let folder = state.manager.clip_all(&settings)?;
-    if settings.notify_clip {
-        state.toast.show(&format!("Clip saved to {}", folder));
+    let manager = state.manager.clone();
+    let toast = state.toast.clone();
+    let folder = tauri::async_runtime::spawn_blocking(move || {
+        manager.clip_all(&settings)
+    }).await.map_err(|e| e.to_string())??;
+    if state.settings.lock().unwrap().notify_clip {
+        toast.show(&format!("Clip saved to {}", folder));
     }
     Ok(folder)
 }
@@ -151,8 +202,264 @@ fn list_processes(state: State<AppState>) -> Vec<ProcessInfoDto> {
 
 #[tauri::command]
 fn hide_to_tray(window: tauri::Window, state: State<AppState>) {
+    // stop any running transcription
+    TRANSCRIBE_STOP.store(true, std::sync::atomic::Ordering::Relaxed);
     hide_and_release(&window);
     state.toast.show("ClipThis hidden to tray");
+}
+
+#[tauri::command]
+fn list_clips(state: State<AppState>) -> Result<Vec<ClipFolderDto>, String> {
+    let settings = state.settings.lock().unwrap().clone();
+    let base = std::path::PathBuf::from(&settings.output_dir);
+    if !base.exists() {
+        return Ok(vec![]);
+    }
+    let mut folders = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&base) {
+        for e in entries.flatten() {
+            if !e.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                continue;
+            }
+            let folder_path = e.path();
+            let folder_name = e.file_name().to_string_lossy().to_string();
+            let mut files = Vec::new();
+            if let Ok(sub) = std::fs::read_dir(&folder_path) {
+                for f in sub.flatten() {
+                    let path = f.path();
+                    if let Some(ext) = path.extension() {
+                        let ext = ext.to_string_lossy().to_lowercase();
+                        if ext == "wav" || ext == "flac" || ext == "m4a" {
+                            if let Ok(meta) = f.metadata() {
+                                files.push(ClipFileDto {
+                                    name: f.file_name().to_string_lossy().to_string(),
+                                    path: path.to_string_lossy().to_string(),
+                                    size: meta.len(),
+                                    duration_ms: 0,
+                                    waveform: Vec::new(),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            files.sort_by(|a, b| a.name.cmp(&b.name));
+            folders.push(ClipFolderDto {
+                name: folder_name,
+                path: folder_path.to_string_lossy().to_string(),
+                files,
+            });
+        }
+    }
+    folders.sort_by(|a, b| b.name.cmp(&a.name)); // newest first
+    Ok(folders)
+}
+
+fn clip_info(path: &std::path::Path) -> (u64, Vec<u8>) {
+    let Ok(file) = std::fs::File::open(path) else { return (0, vec![14; 60]) };
+    let Ok(source) = rodio::Decoder::try_from(std::io::BufReader::new(file)) else { return (0, vec![14; 60]) };
+    use rodio::Source;
+    let duration_ms = source.total_duration().map(|d| d.as_millis() as u64).unwrap_or(0);
+    const BARS: usize = 60;
+    let samples: Vec<f32> = source.collect();
+    if samples.is_empty() {
+        return (duration_ms, vec![14; BARS]);
+    }
+    let mut peaks = vec![0.0f32; BARS];
+    for (i, &sample) in samples.iter().enumerate() {
+        let bucket = (i * BARS / samples.len()).min(BARS - 1);
+        peaks[bucket] = peaks[bucket].max(sample.abs());
+    }
+    let max = peaks.iter().copied().fold(0.001f32, f32::max);
+    let wave: Vec<u8> = peaks.into_iter().map(|p| {
+        let norm = (p / max).sqrt();
+        ((norm * 86.0) + 14.0).clamp(14.0, 100.0) as u8
+    }).collect();
+    (duration_ms, wave)
+}
+
+#[tauri::command]
+async fn enrich_clip(path: String) -> Result<(u64, Vec<u8>), String> {
+    let cache = CLIP_CACHE.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+    {
+        let guard = cache.lock().unwrap();
+        if let Some(val) = guard.get(&path) {
+            return Ok(val.clone());
+        }
+    }
+    let p_clone = path.clone();
+    let res = tauri::async_runtime::spawn_blocking(move || {
+        let p = std::path::PathBuf::from(&p_clone);
+        if !p.exists() { return Err("clip file not found".to_string()); }
+        Ok(clip_info(&p))
+    }).await.map_err(|e| e.to_string())??;
+    {
+        let mut guard = cache.lock().unwrap();
+        guard.insert(path, res.clone());
+    }
+    Ok(res)
+}
+
+#[tauri::command]
+fn play_clip(path: String) -> Result<(), String> {
+    let holder = PLAYER_STREAM.get_or_init(|| std::sync::Mutex::new(None));
+    let mut guard = holder.lock().map_err(|_| "audio player lock failed".to_string())?;
+    if guard.is_none() {
+        *guard = Some(rodio::DeviceSinkBuilder::open_default_sink().map_err(|e| e.to_string())?);
+    }
+    let players = CURRENT_PLAYER.get_or_init(|| std::sync::Mutex::new(None));
+    let mut current = players.lock().map_err(|_| "audio player lock failed".to_string())?;
+    if let Some(active) = current.as_ref() {
+        if active.path == path {
+            if active.player.is_paused() { active.player.play(); } else { active.player.pause(); }
+            return Ok(());
+        }
+    }
+    if let Some(active) = current.take() { active.player.stop(); }
+
+    let file = std::fs::File::open(&path).map_err(|e| e.to_string())?;
+    let source = rodio::Decoder::try_from(std::io::BufReader::new(file)).map_err(|e| e.to_string())?;
+    use rodio::Source;
+    let duration_ms = source.total_duration().map(|d| d.as_millis() as u64).unwrap_or_else(|| {
+        let cache = CLIP_CACHE.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+        cache.lock().unwrap().get(&path).map(|(d, _)| *d).unwrap_or(0)
+    });
+    let player = rodio::Player::connect_new(guard.as_ref().unwrap().mixer());
+    player.append(source);
+    *current = Some(ActivePlayer { path: path.clone(), duration_ms, player });
+    Ok(())
+}
+
+#[tauri::command]
+fn playback_state() -> Result<PlaybackStateDto, String> {
+    let Some(holder) = CURRENT_PLAYER.get() else {
+        return Ok(PlaybackStateDto { path: None, position_ms: 0, duration_ms: 0, playing: false });
+    };
+    let guard = holder.lock().map_err(|_| "audio player lock failed".to_string())?;
+    let Some(active) = guard.as_ref() else {
+        return Ok(PlaybackStateDto { path: None, position_ms: 0, duration_ms: 0, playing: false });
+    };
+    Ok(PlaybackStateDto {
+        path: Some(active.path.clone()),
+        position_ms: active.player.get_pos().as_millis() as u64,
+        duration_ms: active.duration_ms,
+        playing: !active.player.is_paused() && !active.player.empty(),
+    })
+}
+
+#[tauri::command]
+fn pause_clip() -> Result<(), String> {
+    if let Some(holder) = CURRENT_PLAYER.get() {
+        if let Some(active) = holder.lock().map_err(|_| "audio player lock failed".to_string())?.as_ref() {
+            active.player.pause();
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn resume_clip() -> Result<(), String> {
+    if let Some(holder) = CURRENT_PLAYER.get() {
+        if let Some(active) = holder.lock().map_err(|_| "audio player lock failed".to_string())?.as_ref() {
+            active.player.play();
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn set_playback_volume(volume: f32) -> Result<(), String> {
+    if let Some(holder) = CURRENT_PLAYER.get() {
+        if let Some(active) = holder.lock().map_err(|_| "audio player lock failed".to_string())?.as_ref() {
+            active.player.set_volume(volume.clamp(0.0, 1.0));
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn seek_clip(path: String, position_ms: u64) -> Result<(), String> {
+    let Some(holder) = CURRENT_PLAYER.get() else { return Ok(()) };
+    let guard = holder.lock().map_err(|_| "audio player lock failed".to_string())?;
+    if let Some(active) = guard.as_ref() {
+        if active.path == path {
+            active.player.try_seek(std::time::Duration::from_millis(position_ms))
+                .map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn stop_clip() -> Result<(), String> {
+    if let Some(holder) = CURRENT_PLAYER.get() {
+        if let Some(active) = holder.lock().map_err(|_| "audio player lock failed".to_string())?.take() {
+            active.player.stop();
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn transcribe_clip(path: String) -> Result<String, String> {
+    use std::process::Command;
+    TRANSCRIBE_STOP.store(false, std::sync::atomic::Ordering::Relaxed);
+    let source = std::path::PathBuf::from(&path);
+    if !source.exists() {
+        return Err("clip file not found".to_string());
+    }
+    // Windows SpeechRecognitionEngine only accepts PCM WAV reliably. Convert
+    // every ClipThis format through ffmpeg first, then delete the temporary WAV.
+    // ffmpeg is also used by VLC/most codec tools and is checked at runtime.
+    let temp = std::env::temp_dir().join(format!(
+        "clipthis_transcribe_{}_{}.wav",
+        std::process::id(),
+        chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default()
+    ));
+    let ffmpeg = [
+        std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.join("ffmpeg.exe"))),
+        Some(std::path::PathBuf::from("ffmpeg.exe")),
+    ]
+    .into_iter()
+    .flatten()
+    .find(|p| p.exists() || p.to_string_lossy() == "ffmpeg.exe")
+    .ok_or_else(|| "FFmpeg is required for transcription. Put ffmpeg.exe next to ClipThis.exe or add FFmpeg to PATH.".to_string())?;
+    let converted = Command::new(ffmpeg)
+        .args(["-y", "-hide_banner", "-loglevel", "error", "-i"])
+        .arg(&source)
+        .args(["-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le"])
+        .arg(&temp)
+        .status()
+        .map_err(|_| "ffmpeg is required for transcription; install ffmpeg or add it to PATH".to_string())?;
+    if !converted.success() {
+        let _ = std::fs::remove_file(&temp);
+        return Err("could not convert this audio file to PCM for speech recognition".to_string());
+    }
+    let script = format!(
+        "Add-Type -AssemblyName System.Speech; \
+        $r = New-Object System.Speech.Recognition.SpeechRecognitionEngine; \
+        $r.SetInputToWaveFile('{}'); \
+        $g = New-Object System.Speech.Recognition.DictationGrammar; \
+        $r.LoadGrammar($g); \
+        $res = $r.Recognize(); \
+        if ($res) {{ $res.Text }} else {{ '' }}; \
+        $r.Dispose()",
+        temp.to_string_lossy().replace('\'', "''")
+    );
+    let output = Command::new("powershell")
+        .args(["-NoProfile", "-Command", &script])
+        .output()
+        .map_err(|e| e.to_string())?;
+    let _ = std::fs::remove_file(&temp);
+    if TRANSCRIBE_STOP.load(std::sync::atomic::Ordering::Relaxed) {
+        return Err("cancelled".to_string());
+    }
+    let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if text.is_empty() {
+        Ok("(no speech detected)".to_string())
+    } else {
+        Ok(text)
+    }
 }
 
 #[tauri::command]
@@ -206,26 +513,34 @@ fn apply_update(url: String) -> Result<(), String> {
     std::io::copy(&mut reader, &mut file).map_err(|e| e.to_string())?;
     let current_exe = std::env::current_exe().map_err(|e| e.to_string())?;
 
-    // PowerShell script: shows a small dark "Updating…" window, runs the
-    // swap bat hidden, then closes the window and starts the new exe.
+    // PowerShell script: shows a small dark borderless "Updating…" window
+    // with rounded corners, runs the swap, then closes and starts the new exe.
     let ps1 = std::env::temp_dir().join("clipthis_updater.ps1");
     let ps1_content = format!(
         "Add-Type -AssemblyName System.Windows.Forms\r\n\
         Add-Type -AssemblyName System.Drawing\r\n\
+        $w = 280; $h = 80; $r = 10\r\n\
+        $gp = New-Object Drawing.Drawing2D.GraphicsPath\r\n\
+        $gp.AddArc(0, 0, $r*2, $r*2, 180, 90)\r\n\
+        $gp.AddArc($w - $r*2, 0, $r*2, $r*2, 270, 90)\r\n\
+        $gp.AddArc($w - $r*2, $h - $r*2, $r*2, $r*2, 0, 90)\r\n\
+        $gp.AddArc(0, $h - $r*2, $r*2, $r*2, 90, 90)\r\n\
+        $gp.CloseFigure()\r\n\
         $f = New-Object Windows.Forms.Form\r\n\
-        $f.Text = 'ClipThis'\r\n\
-        $f.Size = New-Object Drawing.Size(320,100)\r\n\
+        $f.Size = New-Object Drawing.Size($w, $h)\r\n\
         $f.StartPosition = 'CenterScreen'\r\n\
-        $f.FormBorderStyle = 'FixedToolWindow'\r\n\
-        $f.BackColor = [Drawing.Color]::FromArgb(27,29,38)\r\n\
+        $f.FormBorderStyle = 'None'\r\n\
+        $f.BackColor = [Drawing.ColorTranslator]::FromHtml('#1b1d26')\r\n\
         $f.ShowInTaskbar = $false\r\n\
         $f.TopMost = $true\r\n\
+        $f.Region = New-Object Drawing.Region($gp)\r\n\
         $l = New-Object Windows.Forms.Label\r\n\
         $l.Text = 'Updating ClipThis...'\r\n\
-        $l.ForeColor = [Drawing.Color]::FromArgb(232,233,238)\r\n\
+        $l.ForeColor = [Drawing.ColorTranslator]::FromHtml('#e8e9ee')\r\n\
         $l.Font = New-Object Drawing.Font('Segoe UI',12)\r\n\
-        $l.AutoSize = $true\r\n\
-        $l.Location = New-Object Drawing.Point(24,28)\r\n\
+        $l.AutoSize = $false\r\n\
+        $l.Size = New-Object Drawing.Size($w, $h)\r\n\
+        $l.TextAlign = [Drawing.ContentAlignment]::MiddleCenter\r\n\
         $f.Controls.Add($l)\r\n\
         $f.Show()\r\n\
         [Windows.Forms.Application]::DoEvents()\r\n\
@@ -587,7 +902,7 @@ fn main() {
                 hide_and_release(window);
             }
         })
-        .invoke_handler(tauri::generate_handler![get_settings, set_settings, trigger_clip, list_processes, pick_folder, hide_to_tray, get_version, check_update, apply_update])
+        .invoke_handler(tauri::generate_handler![get_settings, set_settings, reset_settings, trigger_clip, list_processes, pick_folder, hide_to_tray, get_version, check_update, apply_update, list_clips, enrich_clip, play_clip, stop_clip, playback_state, pause_clip, resume_clip, set_playback_volume, seek_clip, transcribe_clip])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|_app, event| {

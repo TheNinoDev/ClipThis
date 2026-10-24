@@ -4,144 +4,424 @@
 <meta charset="UTF-8" />
 <title>ClipThis</title>
 <style>
+  @font-face {
+    font-family: 'Jaro';
+    src: url('jaro.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+  }
+
   :root {
     color-scheme: dark;
     --bg: #15161c;
-    --surface: #1b1d26;
-    --surface-2: #21232e;
-    --border: #2b2e3b;
-    --text: #e8e9ee;
+    --surface: #1d1f29;
+    --surface-pill: #14151c;
+    --surface-2: #212433;
+    --border: rgba(255, 255, 255, 0.08);
+    --text: #ffffff;
     --muted: #8d92a5;
     --accent: #5b8cff;
-    --accent-soft: rgba(91, 140, 255, 0.14);
-    --radius: 10px;
+    --accent-hover: #719bff;
+    --accent-soft: rgba(91, 140, 255, 0.16);
+    --track: #3b4051;
+    --radius: 12px;
   }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  .app.ready .titlebar, .app.ready .tabs { animation: dropIn .32s cubic-bezier(.22,.8,.3,1) both; }
+  .app.ready .panel { animation: riseIn .36s .04s cubic-bezier(.22,.8,.3,1) both; }
+  .app.ready .footer { animation: riseIn .32s .08s cubic-bezier(.22,.8,.3,1) both; }
+  @keyframes dropIn { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes riseIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+
   html, body {
     height: 100%; width: 100%;
     overflow: hidden;
     background: var(--bg);
     color: var(--text);
-    font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     font-size: 13px;
     -webkit-font-smoothing: antialiased;
     user-select: none;
   }
-  ::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 999px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.22); }
 
-  .app { display: flex; flex-direction: column; height: 100%; }
+  .app { display: flex; flex-direction: column; height: 100%; background: var(--bg); }
 
+  /* TITLEBAR */
   .titlebar {
     display: flex; align-items: center; gap: 10px;
-    height: 40px; padding: 0 8px 0 14px;
-    background: var(--surface);
+    height: 38px; padding: 0 10px 0 16px;
+    background: var(--bg);
     border-bottom: 1px solid var(--border);
     flex: 0 0 auto;
   }
-  .titlebar .brand { font-size: 12.5px; font-weight: 600; letter-spacing: .2px; }
-  .titlebar .spacer { flex: 1; height: 100%; }
+  .titlebar .brand {
+    font-family: 'Jaro', sans-serif;
+    font-size: 18px;
+    letter-spacing: .5px;
+    color: #fff;
+  }
+  .titlebar .spacer { flex: 1; height: 100%; cursor: grab; }
   .iconbtn {
-    width: 30px; height: 26px; border: 1px solid transparent; border-radius: 7px;
+    width: 28px; height: 26px; border: 1px solid transparent; border-radius: 8px;
     background: transparent; color: var(--muted); cursor: pointer;
     display: flex; align-items: center; justify-content: center;
+    transition: background .12s, color .12s;
   }
-  .iconbtn:hover { background: var(--surface-2); color: var(--text); }
+  .iconbtn:hover { background: var(--surface-2); color: #fff; }
   .iconbtn svg { width: 14px; height: 14px; }
 
+  /* TABS */
   .tabs {
-    display: flex; gap: 0; padding: 0;
-    background: var(--surface);
+    display: flex; gap: 0; padding: 0 8px;
+    background: var(--bg);
     border-bottom: 1px solid var(--border);
+    flex: 0 0 auto;
   }
   .tab {
-    flex: 1; border: none; background: transparent; color: var(--muted);
-    font: inherit; font-size: 12px; padding: 8px 0; cursor: pointer;
+    flex: 1; border: none; background: transparent;
+    color: rgba(255, 255, 255, 0.45);
+    font-family: 'Jaro', sans-serif;
+    font-size: 15px;
+    letter-spacing: .4px;
+    padding: 8px 0 9px; cursor: pointer;
     border-bottom: 2px solid transparent;
-    transition: color .12s, border-color .12s;
+    transition: color .15s, border-color .15s;
   }
-  .tab:hover { color: var(--text); }
-  .tab.on { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  .tab:hover { color: #fff; }
+  .tab.on { color: var(--accent); border-bottom-color: var(--accent); }
 
-  .panel { flex: 1; padding: 10px 14px; overflow-y: auto; display: none; flex-direction: column; gap: 2px; }
+  /* PANELS */
+  .panel {
+    flex: 1;
+    padding: 12px 14px;
+    overflow-y: auto;
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+  }
   .panel.on { display: flex; }
 
-  .row {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 10px; border-radius: var(--radius);
+  /* FORM ROWS & CONTROLS */
+  .card-container {
+    background: var(--surface);
+    border-radius: 20px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
-  .row:hover { background: rgba(255,255,255,0.025); }
+  .row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 6px; border-radius: 10px;
+  }
+  .row:hover { background: rgba(255, 255, 255, 0.02); }
   .row .lead {
-    width: 120px; flex: 0 0 120px;
-    font-size: 12.5px; font-weight: 500;
+    width: 125px; flex: 0 0 125px;
+    font-size: 12.5px; font-weight: 500; color: #f0f0f5;
   }
   .row .lead small { display: block; font-size: 10.5px; color: var(--muted); font-weight: 400; margin-top: 1px; }
-  .row .ctl { flex: 1; min-width: 0; display: flex; justify-content: flex-end; align-items: center; gap: 6px; }
+  .row .ctl { flex: 1; min-width: 0; display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
 
-  input[type="text"], select {
-    width: 100%; height: 30px; padding: 0 10px;
-    background: var(--surface-2); color: var(--text);
-    border: 1px solid var(--border); border-radius: 8px;
+  input[type="text"] {
+    width: 100%; height: 32px; padding: 0 12px;
+    background: var(--surface-pill); color: #fff;
+    border: 1px solid var(--border); border-radius: 10px;
     font: inherit; font-size: 12px; outline: none;
+    transition: border-color .15s, box-shadow .15s;
   }
-  input[type="text"]:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-  input[type="text"]::placeholder { color: #6a6f80; }
+  input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  input[type="text"]::placeholder { color: #616575; }
   input[type="text"][readonly] { cursor: pointer; }
-  select {
-    appearance: none; padding-right: 28px; cursor: pointer;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none' stroke='%238d92a5' stroke-width='1.6'><path d='M1 1l4 4 4-4'/></svg>");
-    background-repeat: no-repeat; background-position: right 10px center;
-  }
 
-  .seg { display: inline-flex; padding: 3px; gap: 2px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; }
+  .custom-select { position: relative; width: 140px; }
+  .select-trigger {
+    width: 100%; height: 32px; padding: 0 28px 0 12px; text-align: left;
+    background: var(--surface-pill); color: #fff; border: 1px solid var(--border);
+    border-radius: 10px; font: inherit; font-size: 12px; cursor: pointer; position: relative;
+    outline: none; transition: border-color .15s;
+  }
+  .select-trigger::after {
+    content: ""; position: absolute; right: 11px; top: 11px; width: 7px; height: 7px;
+    border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted);
+    transform: rotate(45deg); transition: transform .15s;
+  }
+  .custom-select.open .select-trigger { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .custom-select.open .select-trigger::after { transform: rotate(225deg) translate(-2px,-2px); }
+  .select-menu {
+    display: none; position: absolute; z-index: 50; left: 0; right: 0; top: 36px;
+    padding: 4px; background: #1a1c26; border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 12px 30px rgba(0,0,0,.5);
+  }
+  .custom-select.open .select-menu { display: block; }
+  .select-option { padding: 7px 10px; border-radius: 7px; color: var(--muted); cursor: pointer; font-size: 12px; }
+  .select-option:hover, .select-option.selected { color: #fff; background: var(--accent); }
+
+  .seg { display: inline-flex; padding: 3px; gap: 3px; background: var(--surface-pill); border: 1px solid var(--border); border-radius: 10px; }
   .seg button {
     border: none; background: transparent; color: var(--muted);
-    font: inherit; font-size: 11px; padding: 4px 7px; border-radius: 6px; cursor: pointer;
+    font: inherit; font-size: 11.5px; padding: 4px 8px; border-radius: 7px; cursor: pointer;
+    transition: background .12s, color .12s;
   }
   .seg button.on { background: var(--accent); color: #fff; font-weight: 600; }
 
   .switch {
-    position: relative; width: 38px; height: 21px; flex: 0 0 38px;
+    position: relative; width: 40px; height: 22px; flex: 0 0 40px;
     border-radius: 999px; border: 1px solid var(--border);
-    background: var(--surface-2); cursor: pointer; padding: 0;
+    background: var(--surface-pill); cursor: pointer; padding: 0;
+    transition: background .15s, border-color .15s;
   }
   .switch::after {
     content: ""; position: absolute; top: 2px; left: 2px;
-    width: 15px; height: 15px; border-radius: 50%;
-    background: #8d92a5; transition: transform .15s, background .15s;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #7a7e8e; transition: transform .15s, background .15s;
   }
   .switch.on { background: var(--accent); border-color: var(--accent); }
-  .switch.on::after { transform: translateX(17px); background: #fff; }
+  .switch.on::after { transform: translateX(18px); background: #fff; }
 
   .btn {
-    height: 28px; padding: 0 12px; border-radius: 8px; cursor: pointer;
-    background: var(--surface-2); color: var(--text);
+    height: 30px; padding: 0 14px; border-radius: 999px; cursor: pointer;
+    background: var(--surface-pill); color: #f0f0f5;
     border: 1px solid var(--border); font: inherit; font-size: 12px;
-    white-space: nowrap;
+    white-space: nowrap; transition: background .12s, color .12s, transform .08s;
   }
-  .btn:hover { background: #272a37; }
+  .btn:hover { background: var(--surface-2); color: #fff; }
+  .btn:active { transform: scale(0.97); }
   .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-  .btn.primary:hover { background: #4d7ef2; }
+  .btn.primary:hover { background: var(--accent-hover); }
 
-  .divider { height: 1px; background: var(--border); margin: 6px 10px; }
+  .divider { height: 1px; background: var(--border); margin: 6px 0; }
 
+  /* FOOTER */
   .footer {
-    display: flex; align-items: center; gap: 8px; padding: 6px 14px 8px;
-    border-top: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px; padding: 7px 16px 9px;
+    border-top: 1px solid var(--border); background: var(--bg);
+    flex: 0 0 auto;
   }
-  .footer .status { flex: 1; font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .footer .status {
+    flex: 1; font-family: 'Jaro', sans-serif; font-size: 14px;
+    color: rgba(255, 255, 255, 0.45); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    letter-spacing: .3px;
+  }
   .footer .status.ok { color: #56c271; }
   .footer .status.err { color: #e56767; }
+  .footer .btn#clip {
+    font-family: 'Jaro', sans-serif; font-size: 15px; letter-spacing: .4px;
+    background: var(--accent); border-color: var(--accent); color: #fff;
+    padding: 0 18px; height: 32px;
+  }
+  .footer .btn#clip:hover { background: var(--accent-hover); }
 
   .proc-list { padding: 4px 0; }
-  .proc-item { padding: 6px 10px; font-size: 12px; color: var(--text); border-radius: 6px; }
-  .proc-item:hover { background: rgba(255,255,255,0.025); }
+  .proc-item { padding: 6px 10px; font-size: 12px; color: var(--text); border-radius: 8px; }
+  .proc-item:hover { background: rgba(255,255,255,0.03); }
   .proc-item .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #56c271; margin-right: 8px; }
-  .empty { padding: 20px 10px; text-align: center; color: var(--muted); font-size: 12px; }
-  .ver { padding: 4px 10px; font-size: 10px; color: var(--muted); opacity: .6; text-align: center; }
+  .empty { padding: 36px 10px; text-align: center; color: rgba(255, 255, 255, 0.4); font-family: 'Jaro', sans-serif; font-size: 16px; letter-spacing: .3px; }
+
+  /* =========================================================================
+     CLIPS & PLAYER UI (MATCHING FIGMA EXACTLY)
+     ========================================================================= */
+  .clips-scroll-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 4px 2px 14px;
+  }
+
+  /* FIGMA: Player_bg card (fills: #1D1F29, cornerRadius: 40px) */
+  .clip-card {
+    background: #1D1F29;
+    border-radius: 40px;
+    padding: 20px 22px 22px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  }
+
+  /* FIGMA: Header inside card ("10 May 2026  20:30" & "2 Clips") */
+  .clip-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 6px 10px;
+  }
+  .clip-card-datetime {
+    font-family: 'Jaro', sans-serif;
+    font-size: 14px;
+    color: #FFFFFF;
+    letter-spacing: .3px;
+  }
+  .clip-card-count {
+    font-family: 'Jaro', sans-serif;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.3);
+    letter-spacing: .3px;
+  }
+  .clip-card-separator {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.08);
+    margin: 0 4px 14px;
+    border: none;
+  }
+
+  /* FIGMA: Player pill (fills: #14151C, cornerRadius: 49.5px, height: 99px) */
+  .player-pill {
+    background: #14151C;
+    border-radius: 50px;
+    height: 99px;
+    padding: 15px 22px 15px 18px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 12px;
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    transition: background .15s, border-color .15s;
+  }
+  .player-pill:last-child { margin-bottom: 0; }
+  .player-pill:hover { border-color: rgba(91, 140, 255, 0.2); }
+
+  /* FIGMA: 68x68 Circular Play/Pause button (fills: #5B8CFF, rx: 31) */
+  .play-circle-btn {
+    width: 68px;
+    height: 68px;
+    flex: 0 0 68px;
+    border-radius: 31px;
+    background: #5B8CFF;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #FFFFFF;
+    padding: 0;
+    transition: background .15s, transform .1s;
+    outline: none;
+  }
+  .play-circle-btn:hover { background: #6c98ff; }
+  .play-circle-btn:active { transform: scale(0.95); }
+
+  /* FIGMA SVGs for Play and Pause */
+  .play-circle-btn svg { display: block; }
+  .play-circle-btn .icon-play {
+    width: 32px;
+    height: 34px;
+    margin-left: 4px;
+  }
+  .play-circle-btn .icon-pause {
+    width: 34px;
+    height: 35px;
+    display: none;
+  }
+
+  /* Right content area inside player */
+  .player-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 7px;
+  }
+
+  /* FIGMA: Title ("Discord", font: Jaro, 20px, color: white) */
+  .player-title {
+    font-family: 'Jaro', sans-serif;
+    font-size: 20px;
+    line-height: 1.1;
+    letter-spacing: .2px;
+    color: #FFFFFF;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* REAL AUDIO WAVEFORM TIMELINE (Replacing Figma's static line with actual audio waveform) */
+  .waveform-container {
+    height: 18px;
+    display: flex;
+    align-items: center;
+    gap: 2.2px;
+    cursor: pointer;
+    width: 100%;
+    padding: 1px 0;
+    position: relative;
+  }
+  .wave-bar {
+    flex: 1;
+    min-width: 2px;
+    max-width: 4px;
+    height: 20%;
+    background: var(--track); /* Figma line color #3B4051 */
+    border-radius: 999px;
+    transition: background .06s, height .18s ease-out;
+    pointer-events: none;
+  }
+  .wave-bar.played {
+    background: #5B8CFF; /* Figma active wave color #5B8CFF */
+  }
+
+  /* FIGMA: Bottom row with Time ("30 / 30 sec") and Volume slider */
+  .player-bottom-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  /* FIGMA: Time text (font: Jaro, 13px, color: white, opacity: 0.49) */
+  .player-time {
+    font-family: 'Jaro', sans-serif;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.49);
+    letter-spacing: .2px;
+    white-space: nowrap;
+  }
+
+  /* FIGMA: Volume Slider (track: #3B4051, 4px height; thumb: #5B8CFF, 13px circle) */
+  .volume-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+  .volume-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 69px;
+    height: 4px;
+    background: #3B4051;
+    border-radius: 999px;
+    outline: none;
+    cursor: pointer;
+    margin: 0;
+    padding: 0;
+    border: none;
+  }
+  .volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: #5B8CFF;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    transition: transform .1s ease;
+  }
+  .volume-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+  }
 </style>
 </head>
 <body>
-<div class="app">
+<div class="app ready">
+  <!-- TITLEBAR -->
   <div class="titlebar" data-tauri-drag-region>
     <span class="brand" data-tauri-drag-region>ClipThis</span>
     <div class="spacer" data-tauri-drag-region></div>
@@ -150,84 +430,108 @@
     </button>
   </div>
 
+  <!-- TABS -->
   <div class="tabs">
     <button class="tab on" data-tab="capture">Capture</button>
+    <button class="tab" data-tab="clips">Clips</button>
     <button class="tab" data-tab="settings">Settings</button>
     <button class="tab" data-tab="about">About</button>
   </div>
 
   <!-- CAPTURE TAB -->
   <div class="panel on" id="tab-capture">
-    <div class="row">
-      <div class="lead">Hotkey<small>Press to set</small></div>
-      <div class="ctl">
-        <input type="text" id="hotkey" readonly placeholder="Click, then press keys" />
-      </div>
-    </div>
-    <div class="row">
-      <div class="lead">Clip length</div>
-      <div class="ctl">
-        <select id="clip_seconds">
-          <option value="10">10s</option>
-          <option value="15">15s</option>
-          <option value="30">30s</option>
-          <option value="60">60s</option>
-          <option value="120">120s</option>
-        </select>
-      </div>
-    </div>
-    <div class="row">
-      <div class="lead">Format</div>
-      <div class="ctl">
-        <div class="seg" id="format">
-          <button data-v="wav32">WAV 32</button>
-          <button data-v="wav16">WAV 16</button>
-          <button data-v="flac">FLAC</button>
-          <button data-v="aac">AAC</button>
-          <button data-v="adpcm">ADPCM</button>
+    <div class="card-container">
+      <div class="row">
+        <div class="lead">Hotkey<small>Press to set</small></div>
+        <div class="ctl">
+          <input type="text" id="hotkey" readonly placeholder="Click, then press keys" />
         </div>
       </div>
+      <div class="row">
+        <div class="lead">Clip length</div>
+        <div class="ctl">
+          <div class="custom-select" id="clip-select">
+            <button class="select-trigger" id="clip-trigger" type="button">30 seconds</button>
+            <div class="select-menu">
+              <div class="select-option" data-value="10">10 seconds</div>
+              <div class="select-option" data-value="15">15 seconds</div>
+              <div class="select-option selected" data-value="30">30 seconds</div>
+              <div class="select-option" data-value="60">60 seconds</div>
+              <div class="select-option" data-value="120">120 seconds</div>
+            </div>
+            <input type="hidden" id="clip_seconds" value="30" />
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="lead">Format</div>
+        <div class="ctl">
+          <div class="seg" id="format">
+            <button data-v="wav32">WAV 32</button>
+            <button data-v="wav16">WAV 16</button>
+            <button data-v="flac">FLAC</button>
+            <button data-v="aac">AAC</button>
+            <button data-v="adpcm">ADPCM</button>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="lead">Mic</div>
+        <div class="ctl"><button class="switch" id="capture_mic" role="switch"></button></div>
+      </div>
     </div>
-    <div class="row">
-      <div class="lead">Mic</div>
-      <div class="ctl"><button class="switch" id="capture_mic" role="switch"></button></div>
+
+    <div class="card-container" style="flex: 1; min-height: 120px;">
+      <div style="font-family:'Jaro',sans-serif;font-size:15px;color:rgba(255,255,255,0.6);padding:4px 6px;">Active Audio Sources</div>
+      <div class="proc-list" id="procs"></div>
     </div>
-    <div class="divider"></div>
-    <div class="proc-list" id="procs"></div>
+  </div>
+
+  <!-- CLIPS TAB (FIGMA DESIGN) -->
+  <div class="panel" id="tab-clips">
+    <div id="clips-list" class="clips-scroll-wrapper"></div>
   </div>
 
   <!-- SETTINGS TAB -->
   <div class="panel" id="tab-settings">
-    <div class="row">
-      <div class="lead">Output folder</div>
-      <div class="ctl">
-        <input type="text" id="output_dir" />
-        <button class="btn" id="browse">Browse</button>
+    <div class="card-container">
+      <div class="row">
+        <div class="lead">Output folder</div>
+        <div class="ctl">
+          <input type="text" id="output_dir" />
+          <button class="btn" id="browse">Browse</button>
+        </div>
+      </div>
+      <div class="row">
+        <div class="lead">Autostart</div>
+        <div class="ctl"><button class="switch" id="autostart" role="switch"></button></div>
+      </div>
+      <div class="row">
+        <div class="lead">Notify on clip</div>
+        <div class="ctl"><button class="switch" id="notify_clip" role="switch"></button></div>
       </div>
     </div>
-    <div class="row">
-      <div class="lead">Autostart</div>
-      <div class="ctl"><button class="switch" id="autostart" role="switch"></button></div>
-    </div>
-    <div class="row">
-      <div class="lead">Notify on clip</div>
-      <div class="ctl"><button class="switch" id="notify_clip" role="switch"></button></div>
+    <div style="flex:1;"></div>
+    <div style="display:flex;justify-content:center;padding:8px 10px 4px;">
+      <button class="btn" id="reset" style="font-family:'Jaro',sans-serif;font-size:13px;padding:0 14px;color:var(--muted);">Reset to defaults</button>
     </div>
   </div>
 
   <!-- ABOUT TAB -->
   <div class="panel" id="tab-about">
-    <div class="empty" id="ver">ClipThis</div>
-    <div class="row">
-      <div class="lead">Update</div>
-      <div class="ctl"><button class="btn" id="update">Check for updates</button></div>
+    <div class="card-container">
+      <div class="empty" id="ver">ClipThis</div>
+      <div class="row">
+        <div class="lead">Update</div>
+        <div class="ctl"><button class="btn" id="update">Check for updates</button></div>
+      </div>
     </div>
   </div>
 
+  <!-- FOOTER -->
   <div class="footer">
     <div class="status" id="status">Ready</div>
     <button class="btn" id="clip">Clip now</button>
-    <button class="btn primary" id="save">Save</button>
   </div>
 </div>
 
@@ -240,48 +544,107 @@
     el.className = 'status' + (kind ? ' ' + kind : '');
   };
 
-  // tabs
+  // Tabs
+  let clipsSession = 0;
   document.querySelectorAll('.tab').forEach((t) => {
     t.onclick = () => {
       document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('on', x === t));
       document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('on', p.id === 'tab-' + t.dataset.tab));
+      if (t.dataset.tab === 'clips') {
+        clipsSession++;
+        loadClips(clipsSession);
+      } else {
+        clipsSession++;
+      }
     };
   });
 
-  // drag
+  // Window drag
   document.querySelector('.titlebar').addEventListener('mousedown', (e) => {
     if (e.target.closest('button') || e.button !== 0) return;
     try { window.__TAURI__.window.getCurrentWindow().startDragging(); } catch {}
   });
 
-  // switches
+  // Debounced auto-save
+  let _saveTimer = null;
+  function autoSave() {
+    clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(async () => {
+      busy++;
+      try {
+        await invoke('set_settings', { settings: {
+          hotkey: hotkeyInput.value,
+          output_dir: $('output_dir').value,
+          format: getFormat(),
+          autostart: isAutostart(),
+          notify_clip: isNotify(),
+          capture_mic: isMic(),
+          clip_seconds: parseInt($('clip_seconds').value, 10),
+        }});
+        setStatus('Saved', 'ok');
+      } catch (e) {
+        setStatus('Save failed: ' + e, 'err');
+      } finally {
+        busy--;
+      }
+    }, 300);
+  }
+
+  // Switches
   function bindSwitch(id) {
     const el = $(id);
-    el.addEventListener('click', () => el.classList.toggle('on'));
+    el.addEventListener('click', () => { el.classList.toggle('on'); autoSave(); });
     return () => el.classList.contains('on');
   }
   const isAutostart = bindSwitch('autostart');
   const isNotify = bindSwitch('notify_clip');
   const isMic = bindSwitch('capture_mic');
 
-  // format seg
+  // Custom clip-length dropdown
+  const clipSelect = $('clip-select');
+  const clipTrigger = $('clip-trigger');
+  clipTrigger.onclick = () => clipSelect.classList.toggle('open');
+  clipSelect.querySelectorAll('.select-option').forEach((option) => {
+    option.onclick = () => {
+      clipSelect.querySelectorAll('.select-option').forEach((x) => x.classList.remove('selected'));
+      option.classList.add('selected');
+      $('clip_seconds').value = option.dataset.value;
+      clipTrigger.textContent = option.textContent;
+      clipSelect.classList.remove('open');
+      autoSave();
+    };
+  });
+  document.addEventListener('click', (e) => {
+    if (!clipSelect.contains(e.target)) clipSelect.classList.remove('open');
+  });
+
+  // Format segmented control
   function bindSeg(id) {
     const seg = $(id);
     seg.addEventListener('click', (e) => {
       const btn = e.target.closest('button');
       if (!btn) return;
       [...seg.children].forEach((b) => b.classList.toggle('on', b === btn));
+      autoSave();
     });
     return () => { const on = seg.querySelector('button.on'); return on ? on.dataset.v : 'flac'; };
   }
   const getFormat = bindSeg('format');
 
-  // hotkey capture — disabled while a clip hotkey import is active
+  // Output directory changes
+  $('output_dir').addEventListener('change', () => autoSave());
+  $('output_dir').addEventListener('input', () => autoSave());
+
+  // Hotkey capture
   const hotkeyInput = $('hotkey');
   let capturing = false;
   let savedHotkey = '';
   hotkeyInput.addEventListener('focus', () => { capturing = true; savedHotkey = hotkeyInput.value; hotkeyInput.value = 'Press keys...'; });
-  hotkeyInput.addEventListener('blur', () => { capturing = false; if (hotkeyInput.value === 'Press keys...') hotkeyInput.value = savedHotkey; });
+  hotkeyInput.addEventListener('blur', () => {
+    capturing = false;
+    if (hotkeyInput.value === 'Press keys...') hotkeyInput.value = savedHotkey;
+    if (hotkeyInput.value && hotkeyInput.value !== savedHotkey) autoSave();
+  });
   window.addEventListener('keydown', (e) => {
     if (!capturing) return;
     e.preventDefault(); e.stopPropagation();
@@ -300,12 +663,15 @@
     }
   }, true);
 
-  // load settings
+  // Load settings
   async function load() {
     const s = await invoke('get_settings');
     hotkeyInput.value = s.hotkey;
     $('output_dir').value = s.output_dir;
     $('clip_seconds').value = String(s.clip_seconds || 30);
+    const clipOption = clipSelect.querySelector('.select-option[data-value="' + (s.clip_seconds || 30) + '"]') || clipSelect.querySelector('.select-option[data-value="30"]');
+    clipSelect.querySelectorAll('.select-option').forEach((x) => x.classList.toggle('selected', x === clipOption));
+    clipTrigger.textContent = clipOption.textContent;
     const fmt = s.format === 'wav' ? 'wav32' : s.format;
     [...$('format').children].forEach((b) => b.classList.toggle('on', b.dataset.v === fmt));
     $('autostart').classList.toggle('on', !!s.autostart);
@@ -313,17 +679,290 @@
     $('capture_mic').classList.toggle('on', !!s.capture_mic);
   }
 
+  // Active audio process listing
   async function refreshProcs() {
-    const ps = await invoke('list_processes');
-    const el = $('procs');
-    if (!ps.length) {
-      el.innerHTML = '<div class="empty">Waiting for audio sources…</div>';
-    } else {
-      el.innerHTML = ps.map((p) => '<div class="proc-item"><span class="dot"></span>' + p.name + '</div>').join('');
+    try {
+      const ps = await invoke('list_processes');
+      const el = $('procs');
+      if (!ps.length) {
+        el.innerHTML = '<div class="empty" style="padding:16px;">Waiting for audio sources…</div>';
+      } else {
+        el.innerHTML = ps.map((p) => '<div class="proc-item"><span class="dot"></span>' + p.name + '</div>').join('');
+      }
+    } catch {}
+  }
+
+  // =========================================================================
+  // CLIPS & FIGMA PLAYER ENGINE
+  // =========================================================================
+  const NUM_BARS = 58;
+
+  function formatFolderHeader(name) {
+    const m = name.match(/^(\d{4})-(\d{2})-(\d{2})_(\d{2})[-:](\d{2})/);
+    if (m) {
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const day = parseInt(m[3], 10);
+      const month = months[parseInt(m[2], 10) - 1] || m[2];
+      const year = m[1];
+      const time = `${m[4]}:${m[5]}`;
+      return { date: `${day} ${month} ${year}`, time };
+    }
+    return { date: name.replace(/_/g, ' '), time: '' };
+  }
+
+  function getCleanTitle(filename) {
+    let title = filename.replace(/\.(wav|flac|m4a|aac)$/i, '');
+    title = title.replace(/_\d+_\d+s$/i, '').replace(/_\d+s$/i, '');
+    return title || 'Audio';
+  }
+
+  // Global single-poller playback coordinator
+  let currentActivePath = null;
+  let currentActivePlayerEl = null;
+  let globalPlaybackTimer = null;
+
+  function stopGlobalPlayback() {
+    if (globalPlaybackTimer) {
+      clearInterval(globalPlaybackTimer);
+      globalPlaybackTimer = null;
+    }
+    if (currentActivePlayerEl) {
+      const playIcon = currentActivePlayerEl.querySelector('.icon-play');
+      const pauseIcon = currentActivePlayerEl.querySelector('.icon-pause');
+      if (playIcon) playIcon.style.display = 'block';
+      if (pauseIcon) pauseIcon.style.display = 'none';
+    }
+    currentActivePath = null;
+    currentActivePlayerEl = null;
+  }
+
+  function startGlobalPlayback(path, playerEl) {
+    if (currentActivePlayerEl && currentActivePlayerEl !== playerEl) {
+      const oldPlay = currentActivePlayerEl.querySelector('.icon-play');
+      const oldPause = currentActivePlayerEl.querySelector('.icon-pause');
+      if (oldPlay) oldPlay.style.display = 'block';
+      if (oldPause) oldPause.style.display = 'none';
+      // reset old player waveform
+      currentActivePlayerEl.querySelectorAll('.wave-bar').forEach((b) => b.classList.remove('played'));
+    }
+
+    currentActivePath = path;
+    currentActivePlayerEl = playerEl;
+    const playIcon = playerEl.querySelector('.icon-play');
+    const pauseIcon = playerEl.querySelector('.icon-pause');
+    if (playIcon) playIcon.style.display = 'none';
+    if (pauseIcon) pauseIcon.style.display = 'block';
+
+    if (globalPlaybackTimer) clearInterval(globalPlaybackTimer);
+
+    globalPlaybackTimer = setInterval(async () => {
+      if (!currentActivePlayerEl || !document.body.contains(currentActivePlayerEl)) {
+        stopGlobalPlayback();
+        return;
+      }
+      try {
+        const state = await invoke('playback_state');
+        if (state && state.path === currentActivePath) {
+          const durMs = state.duration_ms || Number(currentActivePlayerEl.dataset.duration) || 1;
+          const posMs = state.position_ms || 0;
+          const ratio = Math.max(0, Math.min(1, posMs / durMs));
+          
+          // Update waveform progress bars
+          const bars = currentActivePlayerEl.querySelectorAll('.wave-bar');
+          const playedCount = Math.floor(ratio * bars.length);
+          bars.forEach((bar, idx) => {
+            bar.classList.toggle('played', idx <= playedCount);
+          });
+
+          // Update time label
+          const curSec = Math.round(posMs / 1000);
+          const totalSec = Math.round(durMs / 1000);
+          const timeEl = currentActivePlayerEl.querySelector('.player-time');
+          if (timeEl) timeEl.textContent = `${curSec} / ${totalSec} sec`;
+
+          if (!state.playing && posMs >= durMs && durMs > 0) {
+            stopGlobalPlayback();
+          }
+        }
+      } catch {}
+    }, 75);
+  }
+
+  async function loadClips(session = clipsSession) {
+    const el = $('clips-list');
+    el.innerHTML = '<div class="empty">Loading clips…</div>';
+
+    try {
+      const folders = await invoke('list_clips');
+      if (session !== clipsSession) return;
+      if (!folders.length) {
+        el.innerHTML = '<div class="empty">No clips recorded yet</div>';
+        return;
+      }
+
+      let html = '';
+      for (const folder of folders) {
+        const { date, time } = formatFolderHeader(folder.name);
+        const countText = `${folder.files.length} Clip${folder.files.length === 1 ? '' : 's'}`;
+
+        html += `
+          <div class="clip-card">
+            <div class="clip-card-header">
+              <span class="clip-card-datetime">${date}&nbsp;&nbsp;&nbsp;${time}</span>
+              <span class="clip-card-count">${countText}</span>
+            </div>
+            <div class="clip-card-separator"></div>
+        `;
+
+        for (const f of folder.files) {
+          const appTitle = getCleanTitle(f.name);
+          const escapedPath = f.path.replace(/"/g, '&quot;');
+
+          // Generate waveform placeholder bars
+          let barsHtml = '';
+          for (let i = 0; i < NUM_BARS; i++) {
+            barsHtml += `<span class="wave-bar" style="height: 25%;"></span>`;
+          }
+
+          html += `
+            <div class="player-pill" data-path="${escapedPath}" data-duration="0">
+              <button class="play-circle-btn" type="button" aria-label="Play">
+                <!-- Figma Play SVG -->
+                <svg class="icon-play" viewBox="0 0 38 40" fill="none">
+                  <path d="M2.81258 3.14842C5.01585 -5.15507 37.5 7.64656 37.5 19.7353C37.5 30.1372 5.43303 46.084 2.81258 36.6033C0.0152092 26.4825 -0.544265 15.7994 2.81258 3.14842Z" fill="white" stroke="white" stroke-width="1"/>
+                </svg>
+                <!-- Figma Pause SVG -->
+                <svg class="icon-pause" viewBox="0 0 44 45" fill="none">
+                  <path d="M16.0963 5.25818C16.0963 -0.55738 2.03941 -1.08608 1.29303 5.25818C0.235654 14.2459 0.235658 34.336 1.29303 40.6803C1.95389 44.6455 14.5102 45.4385 16.0963 40.6803C17.6824 30.3709 16.0963 12.4394 16.0963 5.25818Z" fill="white" stroke="white" stroke-width="1"/>
+                  <path d="M42.795 5.06208C42.795 -0.753476 28.7382 -1.28218 27.9918 5.06208C26.9344 14.0498 26.9344 34.1399 27.9918 40.4842C28.6526 44.4494 41.209 45.2424 42.795 40.4842C44.3811 30.1748 42.795 12.2433 42.795 5.06208Z" fill="white" stroke="white" stroke-width="1"/>
+                </svg>
+              </button>
+
+              <div class="player-content">
+                <div class="player-title" title="${appTitle}">${appTitle}</div>
+                <div class="waveform-container">${barsHtml}</div>
+                <div class="player-bottom-row">
+                  <span class="player-time">-- / -- sec</span>
+                  <div class="volume-wrapper">
+                    <input class="volume-slider" type="range" min="0" max="1" step="0.01" value="1" title="Volume" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+
+        html += `</div>`;
+      }
+
+      el.innerHTML = html;
+
+      // Attach player interaction listeners
+      const playerElements = el.querySelectorAll('.player-pill');
+      playerElements.forEach((player) => {
+        const path = player.dataset.path;
+        const playBtn = player.querySelector('.play-circle-btn');
+        const playIcon = player.querySelector('.icon-play');
+        const pauseIcon = player.querySelector('.icon-pause');
+        const waveform = player.querySelector('.waveform-container');
+        const volume = player.querySelector('.volume-slider');
+
+        playBtn.onclick = async () => {
+          if (currentActivePath === path) {
+            // Already active: toggle pause/resume
+            const isPlaying = pauseIcon.style.display !== 'none';
+            if (isPlaying) {
+              playIcon.style.display = 'block';
+              pauseIcon.style.display = 'none';
+              await invoke('pause_clip').catch(() => {});
+            } else {
+              playIcon.style.display = 'none';
+              pauseIcon.style.display = 'block';
+              await invoke('resume_clip').catch(() => {});
+            }
+            return;
+          }
+
+          // Starting a different clip or first play
+          try {
+            await invoke('play_clip', { path });
+            startGlobalPlayback(path, player);
+          } catch (err) {
+            console.error('Play failed:', err);
+            setStatus('Playback error: ' + err, 'err');
+          }
+        };
+
+        // Click-to-seek on waveform
+        waveform.onclick = async (e) => {
+          const rect = waveform.getBoundingClientRect();
+          const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+          const durMs = Number(player.dataset.duration || 0);
+          const targetMs = Math.round(ratio * durMs);
+
+          // Update played bars immediately for instant visual feedback
+          const bars = player.querySelectorAll('.wave-bar');
+          const playedCount = Math.floor(ratio * bars.length);
+          bars.forEach((bar, idx) => bar.classList.toggle('played', idx <= playedCount));
+
+          const curSec = Math.round(targetMs / 1000);
+          const totalSec = Math.round(durMs / 1000);
+          player.querySelector('.player-time').textContent = `${curSec} / ${totalSec} sec`;
+
+          if (currentActivePath !== path) {
+            await invoke('play_clip', { path }).catch(() => {});
+            startGlobalPlayback(path, player);
+          }
+          await invoke('seek_clip', { path, positionMs: targetMs }).catch(() => {});
+        };
+
+        // Volume control
+        volume.oninput = () => {
+          invoke('set_playback_volume', { volume: Number(volume.value) }).catch(() => {});
+        };
+      });
+
+      // Sequential non-blocking waveform enrichment queue
+      // Runs smoothly one by one without freezing IPC or burning multiple CPU cores
+      async function enrichQueue() {
+        for (const player of playerElements) {
+          if (session !== clipsSession) break;
+          const path = player.dataset.path;
+          try {
+            const info = await invoke('enrich_clip', { path });
+            if (session !== clipsSession) break;
+            const durationMs = info[0];
+            const wavePeaks = info[1];
+            player.dataset.duration = durationMs;
+
+            const totalSec = Math.round(durationMs / 1000);
+            const timeEl = player.querySelector('.player-time');
+            if (timeEl && (!currentActivePath || currentActivePath !== path)) {
+              timeEl.textContent = `${totalSec} / ${totalSec} sec`;
+            }
+
+            // Render the actual waveform amplitude peaks into the bars!
+            const bars = player.querySelectorAll('.wave-bar');
+            for (let i = 0; i < bars.length; i++) {
+              const peak = wavePeaks[i % wavePeaks.length] || 15;
+              bars[i].style.height = Math.max(14, peak) + '%';
+            }
+          } catch (e) {
+            const timeEl = player.querySelector('.player-time');
+            if (timeEl) timeEl.textContent = 'Ready';
+          }
+        }
+      }
+      enrichQueue();
+
+    } catch (e) {
+      if (session === clipsSession) {
+        el.innerHTML = '<div class="empty">Error loading clips: ' + e + '</div>';
+      }
     }
   }
 
-  // idle auto-hide (60s)
+  // Idle auto-hide to tray (60s)
   const IDLE_MS = 60000;
   let lastActive = Date.now();
   let busy = 0;
@@ -333,31 +972,35 @@
   );
   setInterval(() => {
     if (busy > 0) { lastActive = Date.now(); return; }
-    if (Date.now() - lastActive >= IDLE_MS) { lastActive = Date.now(); invoke('hide_to_tray'); }
+    if (Date.now() - lastActive >= IDLE_MS) {
+      lastActive = Date.now();
+      invoke('hide_to_tray');
+    }
   }, 2000);
 
   $('minbtn').onclick = () => invoke('hide_to_tray');
 
   $('browse').onclick = async () => {
     busy++;
-    try { const f = await invoke('pick_folder'); if (f) $('output_dir').value = f; } finally { busy--; }
+    try {
+      const f = await invoke('pick_folder');
+      if (f) { $('output_dir').value = f; autoSave(); }
+    } finally {
+      busy--;
+    }
   };
 
-  $('save').onclick = async () => {
+  $('reset').onclick = async () => {
     busy++;
     try {
-      await invoke('set_settings', { settings: {
-        hotkey: hotkeyInput.value,
-        output_dir: $('output_dir').value,
-        format: getFormat(),
-        autostart: isAutostart(),
-        notify_clip: isNotify(),
-        capture_mic: isMic(),
-        clip_seconds: parseInt($('clip_seconds').value, 10),
-      }});
-      setStatus('Saved', 'ok');
-    } catch (e) { setStatus('Save failed: ' + e, 'err'); }
-    finally { busy--; }
+      await invoke('reset_settings');
+      await load();
+      setStatus('Reset to defaults', 'ok');
+    } catch (e) {
+      setStatus('Reset failed: ' + e, 'err');
+    } finally {
+      busy--;
+    }
   };
 
   $('clip').onclick = async () => {
@@ -366,8 +1009,17 @@
     try {
       const folder = await invoke('trigger_clip');
       setStatus('Clipped → ' + folder.split('\\').pop(), 'ok');
-    } catch (e) { setStatus('Clip failed: ' + e, 'err'); }
-    finally { busy--; }
+      // If currently on clips tab, reload clips
+      const clipsTab = document.querySelector('.tab[data-tab="clips"]');
+      if (clipsTab && clipsTab.classList.contains('on')) {
+        clipsSession++;
+        loadClips(clipsSession);
+      }
+    } catch (e) {
+      setStatus('Clip failed: ' + e, 'err');
+    } finally {
+      busy--;
+    }
   };
 
   $('update').onclick = async () => {
@@ -379,8 +1031,11 @@
       if (!confirm('Update to ' + info.latest + '?\n\n' + info.notes)) return;
       setStatus('Downloading…');
       await invoke('apply_update', { url: info.url });
-    } catch (e) { setStatus('Update failed: ' + e, 'err'); }
-    finally { busy--; }
+    } catch (e) {
+      setStatus('Update failed: ' + e, 'err');
+    } finally {
+      busy--;
+    }
   };
 
   invoke('get_version').then((v) => { $('ver').textContent = 'ClipThis v' + v; }).catch(() => {});
