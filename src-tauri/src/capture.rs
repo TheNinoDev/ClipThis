@@ -221,82 +221,114 @@ impl CaptureManager {
         *self.mic_buf.lock().unwrap() = None;
     }
 
-    pub fn clip_all(&self, settings: &Settings) -> Result<String, String> {
-        let timestamp = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S").to_string();
-        let base = PathBuf::from(&settings.output_dir);
-        let folder = base.join(&timestamp);
-        fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
+    fn is_silence(samples: &[i16]) -> bool {
+        if samples.is_empty() {
+            return true;
+        }
+        let mut peak = 0i16;
+        let mut audible_count = 0usize;
+        for &s in samples {
+            let abs = s.abs();
+            if abs > peak {
+                peak = abs;
+            }
+            if abs > 80 {
+                audible_count += 1;
+            }
+        }
+        // In 16-bit PCM, peak < 80 is below -52 dB (noise floor / zero signal).
+        // Also require at least 100 audible samples across the clip.
+        peak < 80 || audible_count < 100
+    }
 
+    pub fn clip_all(&self, settings: &Settings) -> Result<String, String> {
         let entries: Vec<(u32, String, Arc<Mutex<RingBuffer>>)> = {
             let map = self.buffers.lock().unwrap();
             map.values().map(|e| (e.pid, e.name.clone(), e.buf.clone())).collect()
         };
 
+        struct TrackToSave {
+            safe_name: String,
+            pid: u32,
+            samples: Vec<i16>,
+            sr: u32,
+            ch: u16,
+        }
+
+        let mut tracks: Vec<TrackToSave> = Vec::new();
+
         for (pid, name, buf) in entries {
-            let (samples, sr, ch) = {
+            let (raw_samples, sr, ch) = {
                 let mut rb = buf.lock().unwrap();
                 (rb.samples.make_contiguous().to_vec(), rb.sample_rate, rb.channels)
             };
-            if samples.is_empty() {
+            if raw_samples.is_empty() {
                 continue;
             }
             let max_samples = sr as usize * ch as usize * settings.clip_seconds as usize;
-            let samples = if samples.len() > max_samples {
-                samples[samples.len() - max_samples..].to_vec()
+            let samples = if raw_samples.len() > max_samples {
+                raw_samples[raw_samples.len() - max_samples..].to_vec()
             } else {
-                samples
+                raw_samples
             };
-            if samples.is_empty() {
+            // Never save tracks that are silent or empty
+            if Self::is_silence(&samples) {
                 continue;
             }
             let safe_name: String = name.chars().map(|c| if c.is_alphanumeric() || c == '_' || c == '-' { c } else { '_' }).collect();
-            let ext = if settings.format == "flac" { "flac" } else if settings.format == "aac" { "m4a" } else { "wav" };
-            let path = folder.join(format!("{}_{}_{}s.{}", safe_name, pid, settings.clip_seconds, ext));
-            match settings.format.as_str() {
-                "flac" => {
-                    let f: Vec<f32> = samples.iter().map(|s| *s as f32 / 32768.0).collect();
-                    let mut writer = FlacWriter::create(&path, sr, ch).map_err(|e| e.to_string())?;
-                    writer.write_chunk(&f).map_err(|e| e.to_string())?;
-                    writer.finalize().map_err(|e| e.to_string())?;
-                }
-                "wav16" => crate::codec::write_wav_i16(&path, &samples, sr, ch)?,
-                "adpcm" => crate::codec::write_ima_adpcm(&path, &samples, sr, ch)?,
-                "aac" => crate::codec_aac::write_aac(&path, &samples, sr, ch)?,
-                _ => crate::codec::write_wav_f32(&path, &samples, sr, ch)?,
-            }
+            tracks.push(TrackToSave { safe_name, pid, samples, sr, ch });
         }
+
         // Microphone track, if enabled and captured.
         if settings.capture_mic {
             if let Some(buf) = self.mic_buf.lock().unwrap().clone() {
-                let (samples, sr, ch) = {
+                let (raw_samples, sr, ch) = {
                     let mut rb = buf.lock().unwrap();
                     (rb.samples.make_contiguous().to_vec(), rb.sample_rate, rb.channels)
                 };
-                if !samples.is_empty() {
+                if !raw_samples.is_empty() {
                     let max_samples = sr as usize * ch as usize * settings.clip_seconds as usize;
-                    let samples = if samples.len() > max_samples {
-                        samples[samples.len() - max_samples..].to_vec()
+                    let samples = if raw_samples.len() > max_samples {
+                        raw_samples[raw_samples.len() - max_samples..].to_vec()
                     } else {
-                        samples
+                        raw_samples
                     };
-                    if !samples.is_empty() {
-                        let safe = "Microphone";
-                        let ext = if settings.format == "flac" { "flac" } else if settings.format == "aac" { "m4a" } else { "wav" };
-                        let path = folder.join(format!("{}_0_{}s.{}", safe, settings.clip_seconds, ext));
-                        match settings.format.as_str() {
-                            "flac" => {
-                                let f: Vec<f32> = samples.iter().map(|s| *s as f32 / 32768.0).collect();
-                                let mut writer = FlacWriter::create(&path, sr, ch).map_err(|e| e.to_string())?;
-                                writer.write_chunk(&f).map_err(|e| e.to_string())?;
-                                writer.finalize().map_err(|e| e.to_string())?;
-                            }
-                            "wav16" => crate::codec::write_wav_i16(&path, &samples, sr, ch)?,
-                            "adpcm" => crate::codec::write_ima_adpcm(&path, &samples, sr, ch)?,
-                            "aac" => crate::codec_aac::write_aac(&path, &samples, sr, ch)?,
-                            _ => crate::codec::write_wav_f32(&path, &samples, sr, ch)?,
-                        }
+                    if !Self::is_silence(&samples) {
+                        tracks.push(TrackToSave {
+                            safe_name: "Microphone".to_string(),
+                            pid: 0,
+                            samples,
+                            sr,
+                            ch,
+                        });
                     }
                 }
+            }
+        }
+
+        if tracks.is_empty() {
+            return Err("All audio sources were silent (nothing to save)".to_string());
+        }
+
+        let timestamp = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S").to_string();
+        let base = PathBuf::from(&settings.output_dir);
+        let folder = base.join(&timestamp);
+        fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
+
+        for track in tracks {
+            let ext = if settings.format == "flac" { "flac" } else if settings.format == "aac" { "m4a" } else { "wav" };
+            let path = folder.join(format!("{}_{}_{}s.{}", track.safe_name, track.pid, settings.clip_seconds, ext));
+            match settings.format.as_str() {
+                "flac" => {
+                    let f: Vec<f32> = track.samples.iter().map(|s| *s as f32 / 32768.0).collect();
+                    let mut writer = FlacWriter::create(&path, track.sr, track.ch).map_err(|e| e.to_string())?;
+                    writer.write_chunk(&f).map_err(|e| e.to_string())?;
+                    writer.finalize().map_err(|e| e.to_string())?;
+                }
+                "wav16" => crate::codec::write_wav_i16(&path, &track.samples, track.sr, track.ch)?,
+                "adpcm" => crate::codec::write_ima_adpcm(&path, &track.samples, track.sr, track.ch)?,
+                "aac" => crate::codec_aac::write_aac(&path, &track.samples, track.sr, track.ch)?,
+                _ => crate::codec::write_wav_f32(&path, &track.samples, track.sr, track.ch)?,
             }
         }
         Ok(folder.to_string_lossy().to_string())

@@ -102,12 +102,14 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 right: rect.right - 16,
                 bottom: 53,
             };
-            let _ = DrawTextW(
-                hdc,
-                &mut msg_wide,
-                &mut text_rect,
-                DT_LEFT | DT_SINGLELINE | DT_NOPREFIX | DT_END_ELLIPSIS,
-            );
+            if !msg_wide.is_empty() {
+                let _ = DrawTextW(
+                    hdc,
+                    &mut msg_wide,
+                    &mut text_rect,
+                    DT_LEFT | DT_SINGLELINE | DT_NOPREFIX | DT_END_ELLIPSIS,
+                );
+            }
 
             let _ = SelectObject(hdc, old_font);
             let hgdi_tfont: windows::Win32::Graphics::Gdi::HGDIOBJ = title_font.into();

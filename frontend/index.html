@@ -806,7 +806,7 @@
   const NUM_BARS = 58;
 
   function formatFolderHeader(name) {
-    const m = name.match(/^(\d{4})-(\d{2})-(\d{2})_(\\d{2})[-:](\\d{2})/);
+    const m = name.match(/^(\d{4})[-:_](\d{2})[-:_](\d{2})[T_ -](\d{2})[-:. ](\d{2})/);
     if (m) {
       const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       const day = parseInt(m[3], 10);
@@ -916,7 +916,7 @@
         html += `
           <div class="clip-card">
             <div class="clip-card-header">
-              <span class="clip-card-datetime">${date}&nbsp;&nbsp;&nbsp;${time}</span>
+              <span class="clip-card-datetime">${date}${time ? '&nbsp;&nbsp;&nbsp;' + time : ''}</span>
               <span class="clip-card-count">${countText}</span>
             </div>
             <div class="clip-card-separator"></div>
@@ -1162,10 +1162,66 @@
     }
   };
 
+  function markUpdateAvailable(info) {
+    if (!info || !info.latest) return;
+    const aboutTab = document.querySelector('.tab[data-tab="about"]');
+    if (aboutTab) {
+      aboutTab.style.position = 'relative';
+      if (!aboutTab.querySelector('.update-dot')) {
+        const dot = document.createElement('span');
+        dot.className = 'update-dot';
+        dot.style.cssText = 'position:absolute;top:7px;right:7px;width:7px;height:7px;background:#5B8CFF;border-radius:50%;box-shadow:0 0 6px #5B8CFF;';
+        aboutTab.appendChild(dot);
+      }
+    }
+    const updateBtn = $('update');
+    if (updateBtn) {
+      updateBtn.textContent = 'Update to v' + info.latest;
+      updateBtn.style.background = '#5B8CFF';
+      updateBtn.style.color = '#FFFFFF';
+      updateBtn.style.borderColor = 'transparent';
+      updateBtn.style.fontWeight = '600';
+    }
+    $('ver').textContent = 'ClipThis v' + info.current + ' (v' + info.latest + ' available!)';
+  }
+
+  const toastPopup = $('toast-popup');
+  if (toastPopup) {
+    toastPopup.onclick = () => {
+      const txt = $('toast-msg')?.textContent || '';
+      if (txt.toLowerCase().includes('update')) {
+        const aboutTab = document.querySelector('.tab[data-tab="about"]');
+        if (aboutTab) aboutTab.click();
+      }
+    };
+  }
+
+  // Listen for backend background update detection
+  if (window.__TAURI__?.event?.listen) {
+    window.__TAURI__.event.listen('update-available', (e) => {
+      const info = e.payload;
+      if (info) {
+        showToast('New version available: v' + info.latest);
+        markUpdateAvailable(info);
+      }
+    });
+  }
+
   invoke('get_version').then((v) => { $('ver').textContent = 'ClipThis v' + v; }).catch(() => {});
   load();
   refreshProcs();
   setInterval(refreshProcs, 3000);
+
+  // Check for updates on startup/open with a brief toast if available
+  setTimeout(async () => {
+    try {
+      const info = await invoke('check_update');
+      if (info && info.latest) {
+        showToast('New version available: v' + info.latest);
+        markUpdateAvailable(info);
+      }
+    } catch (_) {}
+  }, 1200);
 </script>
 </body>
 </html>

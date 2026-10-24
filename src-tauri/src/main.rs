@@ -185,13 +185,23 @@ async fn trigger_clip(state: State<'_, AppState>) -> Result<String, String> {
     let settings = state.settings.lock().unwrap().clone();
     let manager = state.manager.clone();
     let toast = state.toast.clone();
-    let folder = tauri::async_runtime::spawn_blocking(move || {
+    let res = tauri::async_runtime::spawn_blocking(move || {
         manager.clip_all(&settings)
-    }).await.map_err(|e| e.to_string())??;
-    if state.settings.lock().unwrap().notify_clip {
-        toast.show(&format!("Clip saved to {}", folder));
+    }).await.map_err(|e| e.to_string())?;
+    match res {
+        Ok(folder) => {
+            if state.settings.lock().unwrap().notify_clip {
+                toast.show(&format!("Clip saved to {}", folder));
+            }
+            Ok(folder)
+        }
+        Err(e) => {
+            if state.settings.lock().unwrap().notify_clip {
+                toast.show(&e);
+            }
+            Err(e)
+        }
     }
-    Ok(folder)
 }
 
 #[tauri::command]
@@ -467,7 +477,7 @@ fn get_version(app: tauri::AppHandle) -> String {
     app.package_info().version.to_string()
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, Clone)]
 struct UpdateInfo {
     current: String,
     latest: String,
@@ -475,8 +485,7 @@ struct UpdateInfo {
     notes: String,
 }
 
-#[tauri::command]
-fn check_update(app: tauri::AppHandle) -> Result<Option<UpdateInfo>, String> {
+fn check_update_internal(app: &tauri::AppHandle) -> Result<Option<UpdateInfo>, String> {
     let current = app.package_info().version.to_string();
     let resp = ureq::get("https://api.github.com/repos/TheNinoDev/ClipThis/releases/latest")
         .set("User-Agent", "ClipThis")
@@ -505,21 +514,30 @@ fn check_update(app: tauri::AppHandle) -> Result<Option<UpdateInfo>, String> {
 }
 
 #[tauri::command]
-fn apply_update(url: String) -> Result<(), String> {
+async fn check_update(app: tauri::AppHandle) -> Result<Option<UpdateInfo>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        check_update_internal(&app)
+    }).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn apply_update(url: String) -> Result<(), String> {
     let temp = std::env::temp_dir().join("ClipThis_update.exe");
     let resp = ureq::get(&url).call().map_err(|e| e.to_string())?;
     let mut reader = resp.into_reader();
     let mut file = std::fs::File::create(&temp).map_err(|e| e.to_string())?;
     std::io::copy(&mut reader, &mut file).map_err(|e| e.to_string())?;
     let current_exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let current_pid = std::process::id();
 
-    // PowerShell script: shows a small dark borderless "Updating…" window
-    // with rounded corners, runs the swap, then closes and starts the new exe.
+    // PowerShell script: shows a styled ClipThis card updater window,
+    // waits for the old PID to completely exit (and release all mutexes),
+    // swaps the executable, and cleanly launches the new version.
     let ps1 = std::env::temp_dir().join("clipthis_updater.ps1");
     let ps1_content = format!(
         "Add-Type -AssemblyName System.Windows.Forms\r\n\
         Add-Type -AssemblyName System.Drawing\r\n\
-        $w = 280; $h = 80; $r = 10\r\n\
+        $w = 340; $h = 96; $r = 18\r\n\
         $gp = New-Object Drawing.Drawing2D.GraphicsPath\r\n\
         $gp.AddArc(0, 0, $r*2, $r*2, 180, 90)\r\n\
         $gp.AddArc($w - $r*2, 0, $r*2, $r*2, 270, 90)\r\n\
@@ -530,37 +548,86 @@ fn apply_update(url: String) -> Result<(), String> {
         $f.Size = New-Object Drawing.Size($w, $h)\r\n\
         $f.StartPosition = 'CenterScreen'\r\n\
         $f.FormBorderStyle = 'None'\r\n\
-        $f.BackColor = [Drawing.ColorTranslator]::FromHtml('#1b1d26')\r\n\
+        $f.BackColor = [Drawing.ColorTranslator]::FromHtml('#1D1F29')\r\n\
         $f.ShowInTaskbar = $false\r\n\
         $f.TopMost = $true\r\n\
         $f.Region = New-Object Drawing.Region($gp)\r\n\
+        # Accent bar on left\r\n\
+        $p = New-Object Windows.Forms.Panel\r\n\
+        $p.Size = New-Object Drawing.Size(4, 56)\r\n\
+        $p.Location = New-Object Drawing.Point(18, 20)\r\n\
+        $p.BackColor = [Drawing.ColorTranslator]::FromHtml('#5B8CFF')\r\n\
+        $f.Controls.Add($p)\r\n\
+        # Badge\r\n\
+        $b = New-Object Windows.Forms.Label\r\n\
+        $b.Text = 'CLIPTHIS UPDATER'\r\n\
+        $b.ForeColor = [Drawing.ColorTranslator]::FromHtml('#5B8CFF')\r\n\
+        $b.Font = New-Object Drawing.Font('Segoe UI', 8.5, [Drawing.FontStyle]::Bold)\r\n\
+        $b.Location = New-Object Drawing.Point(32, 18)\r\n\
+        $b.AutoSize = $true\r\n\
+        $f.Controls.Add($b)\r\n\
+        # Title\r\n\
         $l = New-Object Windows.Forms.Label\r\n\
-        $l.Text = 'Updating ClipThis...'\r\n\
-        $l.ForeColor = [Drawing.ColorTranslator]::FromHtml('#e8e9ee')\r\n\
-        $l.Font = New-Object Drawing.Font('Segoe UI',12)\r\n\
-        $l.AutoSize = $false\r\n\
-        $l.Size = New-Object Drawing.Size($w, $h)\r\n\
-        $l.TextAlign = [Drawing.ContentAlignment]::MiddleCenter\r\n\
+        $l.Text = 'Updating to latest version...'\r\n\
+        $l.ForeColor = [Drawing.ColorTranslator]::FromHtml('#FFFFFF')\r\n\
+        $l.Font = New-Object Drawing.Font('Segoe UI', 12, [Drawing.FontStyle]::Bold)\r\n\
+        $l.Location = New-Object Drawing.Point(31, 35)\r\n\
+        $l.AutoSize = $true\r\n\
         $f.Controls.Add($l)\r\n\
+        # Subtext\r\n\
+        $s = New-Object Windows.Forms.Label\r\n\
+        $s.Text = 'Restarting automatically...'\r\n\
+        $s.ForeColor = [Drawing.ColorTranslator]::FromHtml('#8D92A5')\r\n\
+        $s.Font = New-Object Drawing.Font('Segoe UI', 9)\r\n\
+        $s.Location = New-Object Drawing.Point(32, 60)\r\n\
+        $s.AutoSize = $true\r\n\
+        $f.Controls.Add($s)\r\n\
         $f.Show()\r\n\
         [Windows.Forms.Application]::DoEvents()\r\n\
-        Start-Sleep -Seconds 3\r\n\
-        Stop-Process -Name ClipThis -Force -ErrorAction SilentlyContinue 2>$null\r\n\
-        Start-Sleep -Seconds 2\r\n\
-        Copy-Item '{}' '{}' -Force\r\n\
-        Remove-Item '{}' -Force -ErrorAction SilentlyContinue\r\n\
-        $f.Close()\r\n\
-        Start-Process -FilePath '{}'\r\n\
+        # Kill and wait for old PID to completely release mutex\r\n\
+        Stop-Process -Id {} -Force -ErrorAction SilentlyContinue 2>$null\r\n\
+        $cnt = 0\r\n\
+        while ((Get-Process -Id {} -ErrorAction SilentlyContinue) -and ($cnt -lt 30)) {{\r\n\
+            Start-Sleep -Milliseconds 150\r\n\
+            $cnt++\r\n\
+        }}\r\n\
+        Start-Sleep -Milliseconds 400\r\n\
+        # Retry loop to swap binary\r\n\
+        $ok = $false\r\n\
+        for ($i = 0; $i -lt 30; $i++) {{\r\n\
+            try {{\r\n\
+                Copy-Item -LiteralPath '{}' -Destination '{}' -Force -ErrorAction Stop\r\n\
+                $ok = $true\r\n\
+                break\r\n\
+            }} catch {{\r\n\
+                Start-Sleep -Milliseconds 200\r\n\
+            }}\r\n\
+        }}\r\n\
+        if ($ok) {{\r\n\
+            Remove-Item -LiteralPath '{}' -Force -ErrorAction SilentlyContinue\r\n\
+            $f.Close()\r\n\
+            $dir = [System.IO.Path]::GetDirectoryName('{}')\r\n\
+            Start-Process -FilePath '{}' -WorkingDirectory $dir\r\n\
+        }} else {{\r\n\
+            $f.Close()\r\n\
+        }}\r\n\
         Remove-Item $MyInvocation.MyCommand.Source -Force -ErrorAction SilentlyContinue\r\n",
+        current_pid,
+        current_pid,
         temp.display().to_string().replace('\'', "''"),
         current_exe.display().to_string().replace('\'', "''"),
         temp.display().to_string().replace('\'', "''"),
+        current_exe.display().to_string().replace('\'', "''"),
         current_exe.display().to_string().replace('\'', "''"),
     );
     std::fs::write(&ps1, ps1_content).map_err(|e| e.to_string())?;
 
-    std::process::Command::new("powershell")
-        .args([
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        let mut cmd = std::process::Command::new("powershell");
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        cmd.args([
             "-NoProfile",
             "-ExecutionPolicy", "Bypass",
             "-WindowStyle", "Hidden",
@@ -568,6 +635,7 @@ fn apply_update(url: String) -> Result<(), String> {
         ])
         .spawn()
         .map_err(|e| e.to_string())?;
+    }
     std::process::exit(0);
 }
 
@@ -623,11 +691,24 @@ fn window_pos_path() -> std::path::PathBuf {
     config_path().with_file_name("window.json")
 }
 
+#[cfg(windows)]
+fn is_pos_on_screen(x: i32, y: i32) -> bool {
+    use windows::Win32::Graphics::Gdi::{MonitorFromPoint, MONITOR_DEFAULTTONULL};
+    use windows::Win32::Foundation::POINT;
+    unsafe {
+        let hmon = MonitorFromPoint(POINT { x, y }, MONITOR_DEFAULTTONULL);
+        !hmon.is_invalid()
+    }
+}
+
 fn load_window_pos() -> Option<WindowPos> {
     let data = std::fs::read_to_string(window_pos_path()).ok()?;
     let p: WindowPos = serde_json::from_str(&data).ok()?;
-    if p.x.abs() > 20000 || p.y.abs() > 20000 {
-        return None;
+    #[cfg(windows)]
+    {
+        if !is_pos_on_screen(p.x, p.y) || !is_pos_on_screen(p.x + 200, p.y + 100) {
+            return None;
+        }
     }
     Some(p)
 }
@@ -743,20 +824,23 @@ fn main() {
         unsafe {
             let name: Vec<u16> = "ClipThisSingleInstance\0".encode_utf16().collect();
             let _mutex = CreateMutexW(None, true, PCWSTR(name.as_ptr()));
-            if GetLastError().0 == 183 {
-                // Another instance owns the mutex. Ask it to show the UI through a
-                // named event - the window may not exist right now, so there is no
-                // HWND to find or restore.
+            let err = GetLastError().0;
+            if err == 183 {
+                // Another instance owns the mutex. Ask it to show the UI through a named event.
                 let ev_name: Vec<u16> = "Local\\ClipThisShowEvent\0".encode_utf16().collect();
-                for _ in 0..40 {
+                let mut signaled = false;
+                for _ in 0..30 {
                     if let Ok(ev) = OpenEventW(EVENT_MODIFY_STATE, false, PCWSTR(ev_name.as_ptr())) {
                         let _ = SetEvent(ev);
                         let _ = CloseHandle(ev);
+                        signaled = true;
                         break;
                     }
                     std::thread::sleep(std::time::Duration::from_millis(50));
                 }
-                return;
+                if signaled {
+                    return;
+                }
             }
         }
     }
@@ -778,12 +862,17 @@ fn main() {
     std::thread::spawn(move || {
         while clip_rx.recv().is_ok() {
             let s = shared_settings2.lock().unwrap().clone();
-            if let Ok(folder) = manager3.clip_all(&s) {
-                if s.notify_clip {
-                    toast2.show(&format!("Clip saved to {}", folder));
+            match manager3.clip_all(&s) {
+                Ok(folder) => {
+                    if s.notify_clip {
+                        toast2.show(&format!("Clip saved to {}", folder));
+                    }
                 }
-            } else {
-                let _ = std::fs::write("D:\\ClipThis\\clipnotify.log", "clip failed");
+                Err(e) => {
+                    if s.notify_clip {
+                        toast2.show(&e);
+                    }
+                }
             }
         }
     });
@@ -838,7 +927,7 @@ fn main() {
         }
     });
 
-    let toast = toast.clone();
+    let toast_handle = toast.clone();
     let app_state = AppState {
         settings: Mutex::new(settings),
         shared_settings,
@@ -891,6 +980,19 @@ fn main() {
             if !is_autostart {
                 open_window(app.handle());
             }
+
+            // Check for updates in background on startup
+            let toast_update = toast_handle.clone();
+            let app_update = app.handle().clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(1500));
+                if let Ok(Some(update)) = check_update_internal(&app_update) {
+                    toast_update.show(&format!("Update v{} available!", update.latest));
+                    use tauri::Emitter;
+                    let _ = app_update.emit("update-available", &update);
+                }
+            });
+
             Ok(())
         })
         .on_window_event(|window, event| {
