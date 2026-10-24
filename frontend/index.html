@@ -233,10 +233,10 @@
   }
   .footer .btn#clip:hover { background: var(--accent-hover); }
 
-  .proc-list { padding: 4px 0; }
-  .proc-item { padding: 6px 10px; font-size: 12px; color: var(--text); border-radius: 8px; }
+  .proc-list { padding: 2px 0; max-height: 160px; overflow-y: auto; }
+  .proc-item { padding: 6px 10px; font-size: 12px; color: var(--text); border-radius: 8px; display: flex; align-items: center; }
   .proc-item:hover { background: rgba(255,255,255,0.03); }
-  .proc-item .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #56c271; margin-right: 8px; }
+  .proc-item .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #56c271; margin-right: 8px; flex-shrink: 0; }
   .empty {
     padding: 36px 10px; text-align: center; color: rgba(255, 255, 255, 0.4);
     font-family: inherit; font-size: 13.5px; font-weight: 500; letter-spacing: .2px;
@@ -247,22 +247,23 @@
      ========================================================================= */
   .toast-popup {
     position: absolute;
-    top: 46px;
+    bottom: 58px;
     left: 50%;
-    transform: translateX(-50%) translateY(-18px) scale(0.96);
+    transform: translateX(-50%) translateY(14px) scale(0.96);
     opacity: 0;
     pointer-events: none;
     background: #1D1F29;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
-    padding: 8px 18px 8px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    padding: 7px 14px 7px 11px;
     display: flex;
     align-items: center;
-    gap: 12px;
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+    gap: 10px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6);
     z-index: 1000;
-    transition: opacity .22s cubic-bezier(.2,.8,.3,1), transform .22s cubic-bezier(.2,.8,.3,1);
-    max-width: 90%;
+    transition: opacity .2s cubic-bezier(.2,.8,.3,1), transform .2s cubic-bezier(.2,.8,.3,1);
+    max-width: 85%;
+    cursor: pointer;
   }
   .toast-popup.visible {
     opacity: 1;
@@ -271,7 +272,7 @@
   }
   .toast-accent-pill {
     width: 4px;
-    height: 28px;
+    height: 26px;
     border-radius: 999px;
     background: #5B8CFF;
     flex-shrink: 0;
@@ -290,12 +291,30 @@
     text-transform: uppercase;
   }
   .toast-msg {
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 500;
     color: #FFFFFF;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  .toast-close {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 4px;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color .15s;
+    margin-left: 2px;
+  }
+  .toast-close:hover {
+    color: #FFFFFF;
   }
 
   /* =========================================================================
@@ -512,6 +531,7 @@
       <div class="toast-badge">ClipThis</div>
       <div class="toast-msg" id="toast-msg">Ready</div>
     </div>
+    <button class="toast-close" id="toast-close" type="button" aria-label="Dismiss" title="Dismiss">×</button>
   </div>
 
   <!-- TITLEBAR -->
@@ -574,7 +594,7 @@
       </div>
     </div>
 
-    <div class="card-container" style="flex: 1; min-height: 120px;">
+    <div class="card-container" id="sources-card">
       <div class="section-title">Active Audio Sources</div>
       <div class="proc-list" id="procs"></div>
     </div>
@@ -793,7 +813,7 @@
       const ps = await invoke('list_processes');
       const el = $('procs');
       if (!ps.length) {
-        el.innerHTML = '<div class="empty" style="padding:16px;">Waiting for audio sources…</div>';
+        el.innerHTML = '<div class="empty" style="padding:10px 8px; font-size:12px;">Waiting for audio sources…</div>';
       } else {
         el.innerHTML = ps.map((p) => '<div class="proc-item"><span class="dot"></span>' + p.name + '</div>').join('');
       }
@@ -828,6 +848,7 @@
   let currentActivePath = null;
   let currentActivePlayerEl = null;
   let globalPlaybackTimer = null;
+  let seekLockUntil = 0;
 
   function stopGlobalPlayback() {
     if (globalPlaybackTimer) {
@@ -868,6 +889,7 @@
         stopGlobalPlayback();
         return;
       }
+      if (Date.now() < seekLockUntil) return;
       try {
         const state = await invoke('playback_state');
         if (state && state.path === currentActivePath) {
@@ -1011,7 +1033,14 @@
         waveform.onclick = async (e) => {
           const rect = waveform.getBoundingClientRect();
           const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-          const durMs = Number(player.dataset.duration || 0);
+          let durMs = Number(player.dataset.duration || 0);
+          if (durMs <= 0) {
+            try {
+              const state = await invoke('playback_state');
+              if (state && state.duration_ms) durMs = state.duration_ms;
+            } catch {}
+          }
+          if (durMs <= 0) durMs = 30000;
           const targetMs = Math.round(ratio * durMs);
 
           // Update played bars immediately for instant visual feedback
@@ -1021,7 +1050,10 @@
 
           const curSec = Math.round(targetMs / 1000);
           const totalSec = Math.round(durMs / 1000);
-          player.querySelector('.player-time').textContent = `${curSec} / ${totalSec} sec`;
+          const timeEl = player.querySelector('.player-time');
+          if (timeEl) timeEl.textContent = `${curSec} / ${totalSec} sec`;
+
+          seekLockUntil = Date.now() + 350;
 
           if (currentActivePath !== path) {
             await invoke('play_clip', { path }).catch(() => {});
@@ -1186,13 +1218,24 @@
   }
 
   const toastPopup = $('toast-popup');
+  const toastClose = $('toast-close');
+  if (toastClose) {
+    toastClose.onclick = (e) => {
+      e.stopPropagation();
+      clearTimeout(_toastTimer);
+      toastPopup?.classList.remove('visible');
+    };
+  }
   if (toastPopup) {
-    toastPopup.onclick = () => {
+    toastPopup.onclick = (e) => {
+      if (e.target.closest('#toast-close')) return;
       const txt = $('toast-msg')?.textContent || '';
       if (txt.toLowerCase().includes('update')) {
         const aboutTab = document.querySelector('.tab[data-tab="about"]');
         if (aboutTab) aboutTab.click();
       }
+      clearTimeout(_toastTimer);
+      toastPopup.classList.remove('visible');
     };
   }
 

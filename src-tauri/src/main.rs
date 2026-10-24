@@ -267,7 +267,7 @@ fn list_clips(state: State<AppState>) -> Result<Vec<ClipFolderDto>, String> {
 
 fn clip_info(path: &std::path::Path) -> (u64, Vec<u8>) {
     let Ok(file) = std::fs::File::open(path) else { return (0, vec![14; 60]) };
-    let Ok(source) = rodio::Decoder::try_from(std::io::BufReader::new(file)) else { return (0, vec![14; 60]) };
+    let Ok(source) = rodio::Decoder::try_from(file) else { return (0, vec![14; 60]) };
     use rodio::Source;
     let duration_ms = source.total_duration().map(|d| d.as_millis() as u64).unwrap_or(0);
     const BARS: usize = 60;
@@ -320,7 +320,7 @@ fn play_clip(path: String) -> Result<(), String> {
     let players = CURRENT_PLAYER.get_or_init(|| std::sync::Mutex::new(None));
     let mut current = players.lock().map_err(|_| "audio player lock failed".to_string())?;
     if let Some(active) = current.as_ref() {
-        if active.path == path {
+        if active.path == path && !active.player.empty() {
             if active.player.is_paused() { active.player.play(); } else { active.player.pause(); }
             return Ok(());
         }
@@ -328,7 +328,7 @@ fn play_clip(path: String) -> Result<(), String> {
     if let Some(active) = current.take() { active.player.stop(); }
 
     let file = std::fs::File::open(&path).map_err(|e| e.to_string())?;
-    let source = rodio::Decoder::try_from(std::io::BufReader::new(file)).map_err(|e| e.to_string())?;
+    let source = rodio::Decoder::try_from(file).map_err(|e| e.to_string())?;
     use rodio::Source;
     let duration_ms = source.total_duration().map(|d| d.as_millis() as u64).unwrap_or_else(|| {
         let cache = CLIP_CACHE.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
@@ -390,11 +390,29 @@ fn set_playback_volume(volume: f32) -> Result<(), String> {
 #[tauri::command]
 fn seek_clip(path: String, position_ms: u64) -> Result<(), String> {
     let Some(holder) = CURRENT_PLAYER.get() else { return Ok(()) };
-    let guard = holder.lock().map_err(|_| "audio player lock failed".to_string())?;
-    if let Some(active) = guard.as_ref() {
+    let mut guard = holder.lock().map_err(|_| "audio player lock failed".to_string())?;
+    if let Some(active) = guard.as_mut() {
         if active.path == path {
-            active.player.try_seek(std::time::Duration::from_millis(position_ms))
-                .map_err(|e| e.to_string())?;
+            let target = std::time::Duration::from_millis(position_ms);
+            let mut seek_ok = false;
+            if !active.player.empty() {
+                seek_ok = active.player.try_seek(target).is_ok();
+            }
+            if !seek_ok {
+                let was_paused = active.player.is_paused();
+                active.player.stop();
+                if let Ok(file) = std::fs::File::open(&path) {
+                    if let Ok(source) = rodio::Decoder::try_from(file) {
+                        active.player.append(source);
+                        let _ = active.player.try_seek(target);
+                        if was_paused {
+                            active.player.pause();
+                        } else {
+                            active.player.play();
+                        }
+                    }
+                }
+            }
         }
     }
     Ok(())
