@@ -40,7 +40,7 @@
     overflow: hidden;
     background: var(--bg);
     color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
     font-size: 13px;
     -webkit-font-smoothing: antialiased;
     user-select: none;
@@ -50,9 +50,9 @@
   ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 999px; }
   ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.22); }
 
-  .app { display: flex; flex-direction: column; height: 100%; background: var(--bg); }
+  .app { display: flex; flex-direction: column; height: 100%; background: var(--bg); position: relative; }
 
-  /* TITLEBAR */
+  /* TITLEBAR (CLEAN DISTINCT DISPLAY TYPOGRAPHY) */
   .titlebar {
     display: flex; align-items: center; gap: 10px;
     height: 38px; padding: 0 10px 0 16px;
@@ -61,10 +61,17 @@
     flex: 0 0 auto;
   }
   .titlebar .brand {
-    font-family: 'Jaro', sans-serif;
-    font-size: 18px;
-    letter-spacing: .5px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: .2px;
     color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 1px;
+  }
+  .titlebar .brand span {
+    color: var(--accent);
   }
   .titlebar .spacer { flex: 1; height: 100%; cursor: grab; }
   .iconbtn {
@@ -76,7 +83,7 @@
   .iconbtn:hover { background: var(--surface-2); color: #fff; }
   .iconbtn svg { width: 14px; height: 14px; }
 
-  /* TABS */
+  /* TABS (CONSISTENT BALANCED SANS-SERIF) */
   .tabs {
     display: flex; gap: 0; padding: 0 8px;
     background: var(--bg);
@@ -86,10 +93,11 @@
   .tab {
     flex: 1; border: none; background: transparent;
     color: rgba(255, 255, 255, 0.45);
-    font-family: 'Jaro', sans-serif;
-    font-size: 15px;
-    letter-spacing: .4px;
-    padding: 8px 0 9px; cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .2px;
+    padding: 10px 0; cursor: pointer;
     border-bottom: 2px solid transparent;
     transition: color .15s, border-color .15s;
   }
@@ -116,6 +124,13 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+  }
+  .section-title {
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.7);
+    padding: 4px 6px;
   }
   .row {
     display: flex; align-items: center; gap: 12px;
@@ -188,7 +203,7 @@
   .btn {
     height: 30px; padding: 0 14px; border-radius: 999px; cursor: pointer;
     background: var(--surface-pill); color: #f0f0f5;
-    border: 1px solid var(--border); font: inherit; font-size: 12px;
+    border: 1px solid var(--border); font: inherit; font-size: 12px; font-weight: 500;
     white-space: nowrap; transition: background .12s, color .12s, transform .08s;
   }
   .btn:hover { background: var(--surface-2); color: #fff; }
@@ -205,16 +220,16 @@
     flex: 0 0 auto;
   }
   .footer .status {
-    flex: 1; font-family: 'Jaro', sans-serif; font-size: 14px;
+    flex: 1; font-family: inherit; font-size: 12.5px; font-weight: 500;
     color: rgba(255, 255, 255, 0.45); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    letter-spacing: .3px;
+    letter-spacing: .2px;
   }
   .footer .status.ok { color: #56c271; }
   .footer .status.err { color: #e56767; }
   .footer .btn#clip {
-    font-family: 'Jaro', sans-serif; font-size: 15px; letter-spacing: .4px;
+    font-family: inherit; font-size: 13px; font-weight: 600; letter-spacing: .3px;
     background: var(--accent); border-color: var(--accent); color: #fff;
-    padding: 0 18px; height: 32px;
+    padding: 0 20px; height: 32px;
   }
   .footer .btn#clip:hover { background: var(--accent-hover); }
 
@@ -222,10 +237,69 @@
   .proc-item { padding: 6px 10px; font-size: 12px; color: var(--text); border-radius: 8px; }
   .proc-item:hover { background: rgba(255,255,255,0.03); }
   .proc-item .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #56c271; margin-right: 8px; }
-  .empty { padding: 36px 10px; text-align: center; color: rgba(255, 255, 255, 0.4); font-family: 'Jaro', sans-serif; font-size: 16px; letter-spacing: .3px; }
+  .empty {
+    padding: 36px 10px; text-align: center; color: rgba(255, 255, 255, 0.4);
+    font-family: inherit; font-size: 13.5px; font-weight: 500; letter-spacing: .2px;
+  }
 
   /* =========================================================================
-     CLIPS & PLAYER UI (MATCHING FIGMA EXACTLY)
+     IN-APP TOAST POPUP (MATCHING NATIVE WIN32 TOAST & FIGMA DESIGN)
+     ========================================================================= */
+  .toast-popup {
+    position: absolute;
+    top: 46px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-18px) scale(0.96);
+    opacity: 0;
+    pointer-events: none;
+    background: #1D1F29;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 8px 18px 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    transition: opacity .22s cubic-bezier(.2,.8,.3,1), transform .22s cubic-bezier(.2,.8,.3,1);
+    max-width: 90%;
+  }
+  .toast-popup.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+    pointer-events: auto;
+  }
+  .toast-accent-pill {
+    width: 4px;
+    height: 28px;
+    border-radius: 999px;
+    background: #5B8CFF;
+    flex-shrink: 0;
+  }
+  .toast-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+  }
+  .toast-badge {
+    font-size: 10px;
+    font-weight: 700;
+    color: #5B8CFF;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+  }
+  .toast-msg {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: #FFFFFF;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* =========================================================================
+     CLIPS & PLAYER UI (FIGMA AESTHETIC WITH REAL WAVEFORM)
      ========================================================================= */
   .clips-scroll-wrapper {
     display: flex;
@@ -366,7 +440,7 @@
     background: #5B8CFF; /* Figma active wave color #5B8CFF */
   }
 
-  /* FIGMA: Bottom row with Time ("30 / 30 sec") and Volume slider */
+  /* FIGMA: Bottom row with Time ("30 / 30 sec") and Volume slider with volume icon */
   .player-bottom-row {
     display: flex;
     align-items: center;
@@ -383,16 +457,26 @@
     white-space: nowrap;
   }
 
-  /* FIGMA: Volume Slider (track: #3B4051, 4px height; thumb: #5B8CFF, 13px circle) */
+  /* VOLUME SLIDER WITH VOLUME ICON AT LEFT */
   .volume-wrapper {
     display: flex;
     align-items: center;
-    gap: 0;
+    gap: 7px;
+  }
+  .volume-icon {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 14px;
+    color: rgba(255, 255, 255, 0.45);
+    transition: color .15s ease;
+  }
+  .volume-wrapper:hover .volume-icon {
+    color: var(--accent);
   }
   .volume-slider {
     -webkit-appearance: none;
     appearance: none;
-    width: 69px;
+    width: 68px;
     height: 4px;
     background: #3B4051;
     border-radius: 999px;
@@ -421,9 +505,18 @@
 </head>
 <body>
 <div class="app ready">
+  <!-- TOAST NOTIFICATION POPUP -->
+  <div class="toast-popup" id="toast-popup">
+    <div class="toast-accent-pill"></div>
+    <div class="toast-content">
+      <div class="toast-badge">ClipThis</div>
+      <div class="toast-msg" id="toast-msg">Ready</div>
+    </div>
+  </div>
+
   <!-- TITLEBAR -->
   <div class="titlebar" data-tauri-drag-region>
-    <span class="brand" data-tauri-drag-region>ClipThis</span>
+    <span class="brand" data-tauri-drag-region>Clip<span>This</span></span>
     <div class="spacer" data-tauri-drag-region></div>
     <button class="iconbtn" id="minbtn" title="Minimize to tray">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -482,7 +575,7 @@
     </div>
 
     <div class="card-container" style="flex: 1; min-height: 120px;">
-      <div style="font-family:'Jaro',sans-serif;font-size:15px;color:rgba(255,255,255,0.6);padding:4px 6px;">Active Audio Sources</div>
+      <div class="section-title">Active Audio Sources</div>
       <div class="proc-list" id="procs"></div>
     </div>
   </div>
@@ -513,7 +606,7 @@
     </div>
     <div style="flex:1;"></div>
     <div style="display:flex;justify-content:center;padding:8px 10px 4px;">
-      <button class="btn" id="reset" style="font-family:'Jaro',sans-serif;font-size:13px;padding:0 14px;color:var(--muted);">Reset to defaults</button>
+      <button class="btn" id="reset" style="font-size:12.5px;padding:0 16px;color:var(--muted);">Reset to defaults</button>
     </div>
   </div>
 
@@ -538,6 +631,21 @@
 <script>
   const { invoke } = window.__TAURI__.core;
   const $ = (id) => document.getElementById(id);
+
+  // In-app animated toast banner
+  let _toastTimer = null;
+  function showToast(msg) {
+    const el = $('toast-popup');
+    const txt = $('toast-msg');
+    if (!el || !txt) return;
+    txt.textContent = msg;
+    el.classList.add('visible');
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => {
+      el.classList.remove('visible');
+    }, 2800);
+  }
+
   const setStatus = (msg, kind) => {
     const el = $('status');
     el.textContent = msg;
@@ -698,7 +806,7 @@
   const NUM_BARS = 58;
 
   function formatFolderHeader(name) {
-    const m = name.match(/^(\d{4})-(\d{2})-(\d{2})_(\d{2})[-:](\d{2})/);
+    const m = name.match(/^(\d{4})-(\d{2})-(\d{2})_(\\d{2})[-:](\\d{2})/);
     if (m) {
       const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       const day = parseInt(m[3], 10);
@@ -844,6 +952,12 @@
                 <div class="player-bottom-row">
                   <span class="player-time">-- / -- sec</span>
                   <div class="volume-wrapper">
+                    <!-- Volume Speaker Icon -->
+                    <svg class="volume-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"></polygon>
+                      <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                    </svg>
                     <input class="volume-slider" type="range" min="0" max="1" step="0.01" value="1" title="Volume" />
                   </div>
                 </div>
@@ -923,7 +1037,6 @@
       });
 
       // Sequential non-blocking waveform enrichment queue
-      // Runs smoothly one by one without freezing IPC or burning multiple CPU cores
       async function enrichQueue() {
         for (const player of playerElements) {
           if (session !== clipsSession) break;
@@ -996,8 +1109,10 @@
       await invoke('reset_settings');
       await load();
       setStatus('Reset to defaults', 'ok');
+      showToast('Settings reset to defaults');
     } catch (e) {
       setStatus('Reset failed: ' + e, 'err');
+      showToast('Reset failed');
     } finally {
       busy--;
     }
@@ -1008,7 +1123,9 @@
     setStatus('Clipping…');
     try {
       const folder = await invoke('trigger_clip');
-      setStatus('Clipped → ' + folder.split('\\').pop(), 'ok');
+      const folderShort = folder.split('\\').pop();
+      setStatus('Clipped → ' + folderShort, 'ok');
+      showToast('Clipped → ' + folderShort);
       // If currently on clips tab, reload clips
       const clipsTab = document.querySelector('.tab[data-tab="clips"]');
       if (clipsTab && clipsTab.classList.contains('on')) {
@@ -1017,6 +1134,7 @@
       }
     } catch (e) {
       setStatus('Clip failed: ' + e, 'err');
+      showToast('Clip failed: ' + e);
     } finally {
       busy--;
     }
@@ -1027,12 +1145,18 @@
     setStatus('Checking…');
     try {
       const info = await invoke('check_update');
-      if (!info) { setStatus('Up to date', 'ok'); return; }
+      if (!info) {
+        setStatus('Up to date', 'ok');
+        showToast('ClipThis is up to date');
+        return;
+      }
       if (!confirm('Update to ' + info.latest + '?\n\n' + info.notes)) return;
       setStatus('Downloading…');
+      showToast('Downloading update…');
       await invoke('apply_update', { url: info.url });
     } catch (e) {
       setStatus('Update failed: ' + e, 'err');
+      showToast('Update failed: ' + e);
     } finally {
       busy--;
     }
