@@ -190,8 +190,13 @@ async fn trigger_clip(state: State<'_, AppState>) -> Result<String, String> {
     }).await.map_err(|e| e.to_string())?;
     match res {
         Ok(folder) => {
+            toast::play_clip_sound();
             if state.settings.lock().unwrap().notify_clip {
-                toast.show(&format!("Clip saved to {}", folder));
+                let short = std::path::Path::new(&folder)
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| folder.clone());
+                toast.show(&format!("Clip saved → {}", short));
             }
             Ok(folder)
         }
@@ -890,8 +895,13 @@ fn main() {
             let s = shared_settings2.lock().unwrap().clone();
             match manager3.clip_all(&s) {
                 Ok(folder) => {
+                    toast::play_clip_sound();
                     if s.notify_clip {
-                        toast2.show(&format!("Clip saved to {}", folder));
+                        let short = std::path::Path::new(&folder)
+                            .file_name()
+                            .map(|n| n.to_string_lossy().to_string())
+                            .unwrap_or_else(|| folder.clone());
+                        toast2.show(&format!("Clip saved → {}", short));
                     }
                 }
                 Err(e) => {

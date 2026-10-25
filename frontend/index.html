@@ -1190,7 +1190,6 @@
       const folder = await invoke('trigger_clip');
       const folderShort = folder.split('\\').pop();
       setStatus('Clipped → ' + folderShort, 'ok');
-      showToast('Clipped → ' + folderShort);
       // If currently on clips tab, reload clips
       const clipsTab = document.querySelector('.tab[data-tab="clips"]');
       if (clipsTab && clipsTab.classList.contains('on')) {

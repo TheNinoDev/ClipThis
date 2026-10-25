@@ -51,7 +51,7 @@ const SND_ASYNC: u32 = 0x0001;
 const SND_NODEFAULT: u32 = 0x0002;
 const SND_MEMORY: u32 = 0x0004;
 
-fn play_toast_sound() {
+pub fn play_clip_sound() {
     let wav = CHIME_WAV.get_or_init(|| {
         const SAMPLE_RATE: u32 = 44100;
         const DURATION_SECS: f32 = 0.22;
@@ -124,7 +124,6 @@ impl ToastService {
                 unsafe {
                     let _ = PostMessageW(hwnd, WM_SHOW, WPARAM(0), LPARAM(0));
                 }
-                play_toast_sound();
                 return;
             }
             drop(guard);
