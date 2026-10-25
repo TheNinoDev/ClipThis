@@ -1,10 +1,23 @@
-# ClipThis
+<p align="center">
+  <img src="https://github.com/TheNinoDev/ClipThis/blob/main/banner.png?raw=true" alt="ClipThis Banner" width="100%">
+</p>
 
-ClipThis is a high-performance, portable Windows application that continuously buffers and clips the audio of every running application individually. Press a global hotkey, and the last few seconds of audio from each active application are instantly saved into a clean, timestamped folder — one isolated audio file per app.
+<h1 align="center">ClipThis</h1>
+
+<p align="center">
+  <img src="https://img.shields.io/github/stars/TheNinoDev/ClipThis?style=for-the-badge" alt="GitHub Stars">
+  <img src="https://img.shields.io/github/downloads/TheNinoDev/ClipThis/total?style=for-the-badge" alt="Total Downloads">
+  <img src="https://img.shields.io/github/v/release/TheNinoDev/ClipThis?style=for-the-badge" alt="Latest Release">
+  <img src="https://img.shields.io/github/license/TheNinoDev/ClipThis?style=for-the-badge" alt="License">
+</p>
+
+<p align="center">
+  <b>A high-performance Windows application to continuously buffer and clip per-app audio into isolated tracks.</b>
+</p>
 
 ---
 
-## Features
+## 🚀 Features
 
 - **Per-App Audio Loopback**: Each running game, voice client, browser, or media player gets its own isolated, high-quality audio track using WASAPI process loopback capture.
 - **Smart Silence & Empty Track Suppression**: Automatically analyzes audio amplitudes before saving — never pollutes your hard drive with silent, empty recordings or dead folders.
@@ -29,7 +42,7 @@ ClipThis is a high-performance, portable Windows application that continuously b
 
 ---
 
-## Installation & Running
+## 📥 Installation & Running
 
 1. Download `clipthis.exe` from the [Latest Release](https://github.com/TheNinoDev/ClipThis/releases/latest).
 2. Run `clipthis.exe`.
@@ -40,7 +53,7 @@ Clips are saved to your `Music\ClipThis\<timestamp>\` directory with each progra
 
 ---
 
-## Keyboard Controls & Settings
+## ⚙️ Keyboard Controls & Settings
 
 | Setting | Options / Default | Description |
 |---|---|---|
@@ -53,6 +66,16 @@ Clips are saved to your `Music\ClipThis\<timestamp>\` directory with each progra
 
 ---
 
-## License
+## ⭐ Star History
+
+<p align="center">
+  <a href="https://www.star-history.com/#TheNinoDev/ClipThis&type=date&legend=top-left">
+    <img src="https://api.star-history.com/svg?repos=TheNinoDev/ClipThis&type=Date" alt="Star History Chart">
+  </a>
+</p>
+
+---
+
+## 📄 License
 
 MIT License.
