@@ -12,33 +12,32 @@
 </p>
 
 <p align="center">
-  <b>A high-performance Windows application to continuously buffer and clip per-app audio into isolated tracks.</b>
+  <b>Continuously buffers and clips per-app audio on Windows into separate, isolated tracks.</b>
 </p>
 
 ---
 
 ## 🚀 Features
 
-- **Per-App Audio Loopback**: Each running game, voice client, browser, or media player gets its own isolated, high-quality audio track using WASAPI process loopback capture.
-- **Smart Silence & Empty Track Suppression**: Automatically analyzes audio amplitudes before saving — never pollutes your hard drive with silent, empty recordings or dead folders.
-- **In-App Clips Player & Visualizer**:
-  - Figma-inspired dark UI with organized date and time cards (`DD Mon YYYY   HH:MM`).
-  - Real, interactive audio waveform visualization extracted directly from the recorded audio.
-  - Interactive click-to-seek timeline with instant backward and forward random access.
-  - Per-track playback controls, elapsed/total duration indicators, and volume sliders.
-- **Microphone Capture**: Optional dedicated mic recording saved alongside your application clips.
+- **Per-App Audio Isolation**: Capture clean audio from your games, voice calls (Discord, TeamSpeak), music, and browser streams individually into their own separate files.
+- **Built-In Audio Player & Waveform Visualizer**:
+  - Browse your saved clips in an organized, modern dark UI grouped by session.
+  - Interactive audio waveforms showing the exact sound peaks for every track.
+  - Click anywhere on the waveform to seek forward or backward instantly.
+  - Dedicated play/pause controls, duration counters, and volume sliders.
+- **Smart Silence Filtering**: Automatically detects silent tracks and skips empty recordings — keeping your folders clean and saving disk space.
+- **Microphone Recording**: Option to record your microphone simultaneously as its own separate track.
 - **Multiple Audio Formats**:
-  - **AAC (.m4a)**: Modern, efficient lossy compression (~10x smaller), crystal clear sound quality, plays natively across all Windows media players, phones, and web browsers.
-  - **FLAC (.flac)**: Lossless compression (~3x smaller) without losing a single bit of audio fidelity.
-  - **WAV 32-bit (.wav)**: Full 32-bit floating-point audio precision straight from the capture engine.
-  - **WAV 16-bit (.wav)**: Classic uncompressed 16-bit PCM.
-- **Native Windows Toast Notifications**: Sleek, custom dark Win32 toast notifications with smooth cubic ease-out animations indicating when clips are saved, when minimized, when autostarting, or when updates are ready.
-- **Seamless Auto-Updates**: One-click check and update directly from GitHub Releases with a styled background updater card and automatic relaunch.
+  - **AAC (.m4a)**: Modern, highly-compressed audio with crystal clear quality (~10x smaller, plays everywhere).
+  - **FLAC (.flac)**: Studio-grade lossless compression (~3x smaller).
+  - **WAV 32-bit (.wav)**: Full floating-point capture quality.
+  - **WAV 16-bit (.wav)**: Standard uncompressed PCM audio.
+- **Desktop Toast Notifications**: Clean, non-intrusive dark notifications when a clip is saved, when running in the background, or when updates are ready.
+- **One-Click Auto-Updates**: Checks for updates from GitHub and automatically downloads and restarts into the newest version.
 - **System Tray & Autostart**:
-  - Starts automatically with Windows into the system tray when enabled.
-  - Auto-hides to tray after 60 seconds of inactivity to save memory.
-  - Double-click or single-click the tray icon to restore the UI anytime.
-- **Customizable Global Hotkey**: Click to bind any key combination directly from your keyboard (e.g. `Alt+F`, `Ctrl+Shift+F9`).
+  - Runs quietly in the Windows system tray with low memory usage.
+  - Optional autostart with Windows so you never miss a moment.
+- **Customizable Global Hotkey**: Set any shortcut directly from your keyboard (e.g. `Alt+F`, `Ctrl+Shift+F9`).
 
 ---
 
@@ -58,11 +57,11 @@ Clips are saved to your `Music\ClipThis\<timestamp>\` directory with each progra
 | Setting | Options / Default | Description |
 |---|---|---|
 | **Hotkey** | `Alt+F` (configurable) | Global shortcut to capture buffered audio |
-| **Clip Length** | 10s, 15s, 30s, 60s, 120s | Time window of audio retained in memory |
+| **Clip Length** | 10s, 15s, 30s, 60s, 120s | Length of past audio kept in buffer |
 | **Format** | `AAC`, `FLAC`, `WAV 32`, `WAV 16` | Encoding format for saved clips |
-| **Mic** | On / Off | Also records your microphone to a separate audio file |
+| **Mic** | On / Off | Records microphone into a separate audio track |
 | **Autostart** | On / Off | Launches automatically in the tray when Windows boots |
-| **Notify on Clip** | On / Off | Shows native toast when a clip is saved |
+| **Notify on Clip** | On / Off | Shows desktop notification when a clip is saved |
 
 ---
 
