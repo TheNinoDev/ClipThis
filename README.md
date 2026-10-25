@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="https://github.com/TheNinoDev/ClipThis/blob/main/banner.png?raw=true" alt="ClipThis Banner" width="100%">
-</p>
-
 <h1 align="center">ClipThis</h1>
 
 <p align="center">

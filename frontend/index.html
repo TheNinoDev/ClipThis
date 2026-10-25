@@ -242,6 +242,118 @@
     font-family: inherit; font-size: 13.5px; font-weight: 500; letter-spacing: .2px;
   }
 
+  /* CUSTOM UPDATE MODAL */
+  .modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 11, 16, 0.72);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s cubic-bezier(.2,.8,.3,1);
+  }
+  .modal-backdrop.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .modal-card {
+    background: #171822;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    width: 330px;
+    max-width: 90%;
+    padding: 20px 22px;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.65);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transform: scale(0.94) translateY(6px);
+    transition: transform .22s cubic-bezier(.2,.8,.3,1);
+  }
+  .modal-backdrop.visible .modal-card {
+    transform: scale(1) translateY(0);
+  }
+  .modal-badge-row {
+    display: flex;
+    align-items: center;
+  }
+  .modal-badge {
+    font-size: 10px;
+    font-weight: 700;
+    color: #5B8CFF;
+    background: rgba(91, 140, 255, 0.12);
+    border: 1px solid rgba(91, 140, 255, 0.24);
+    border-radius: 999px;
+    padding: 2px 9px;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+  }
+  .modal-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #FFFFFF;
+    letter-spacing: .2px;
+  }
+  .modal-subtitle {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+    line-height: 1.4;
+  }
+  .modal-notes {
+    background: #0E0F14;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: #DDDDDD;
+    max-height: 120px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    line-height: 1.45;
+    font-family: inherit;
+  }
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 4px;
+  }
+  .modal-btn {
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 500;
+    border-radius: 9px;
+    padding: 7px 16px;
+    cursor: pointer;
+    transition: background .15s, transform .1s;
+    border: none;
+  }
+  .modal-btn:active {
+    transform: scale(0.97);
+  }
+  .modal-btn.secondary {
+    background: #232532;
+    color: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .modal-btn.secondary:hover {
+    background: #2B2E3E;
+    color: #FFFFFF;
+  }
+  .modal-btn.primary {
+    background: #5B8CFF;
+    color: #FFFFFF;
+    font-weight: 600;
+  }
+  .modal-btn.primary:hover {
+    background: #4878EB;
+  }
+
   /* =========================================================================
      CLIPS & PLAYER UI (FIGMA AESTHETIC WITH REAL WAVEFORM)
      ========================================================================= */
@@ -449,6 +561,22 @@
 </head>
 <body>
 <div class="app ready">
+  <!-- CUSTOM UPDATE MODAL -->
+  <div class="modal-backdrop" id="update-modal">
+    <div class="modal-card">
+      <div class="modal-badge-row">
+        <span class="modal-badge">Update Available</span>
+      </div>
+      <div class="modal-title" id="modal-update-title">ClipThis Update</div>
+      <div class="modal-subtitle">A new release is ready with updates and improvements:</div>
+      <div class="modal-notes" id="modal-update-notes"></div>
+      <div class="modal-actions">
+        <button class="modal-btn secondary" id="modal-cancel-btn" type="button">Later</button>
+        <button class="modal-btn primary" id="modal-confirm-btn" type="button">Update Now</button>
+      </div>
+    </div>
+  </div>
+
   <!-- TITLEBAR -->
   <div class="titlebar" data-tauri-drag-region>
     <span class="brand" data-tauri-drag-region>Clip<span>This</span></span>
@@ -1077,6 +1205,35 @@
     }
   };
 
+  function confirmUpdateModal(info) {
+    return new Promise((resolve) => {
+      const modal = $('update-modal');
+      const title = $('modal-update-title');
+      const notes = $('modal-update-notes');
+      const cancelBtn = $('modal-cancel-btn');
+      const confirmBtn = $('modal-confirm-btn');
+
+      title.textContent = 'ClipThis v' + info.latest;
+      const rawNotes = info.notes ? info.notes.trim() : '';
+      notes.textContent = rawNotes || 'Includes new features, audio optimizations, and bug fixes.';
+      modal.classList.add('visible');
+
+      function cleanup(result) {
+        modal.classList.remove('visible');
+        cancelBtn.onclick = null;
+        confirmBtn.onclick = null;
+        modal.onclick = null;
+        resolve(result);
+      }
+
+      cancelBtn.onclick = (e) => { e.stopPropagation(); cleanup(false); };
+      confirmBtn.onclick = (e) => { e.stopPropagation(); cleanup(true); };
+      modal.onclick = (e) => {
+        if (e.target === modal) cleanup(false);
+      };
+    });
+  }
+
   $('update').onclick = async () => {
     busy++;
     setStatus('Checking…');
@@ -1088,7 +1245,8 @@
         return;
       }
       showToast('Update v' + info.latest + ' available!');
-      if (!confirm('Update to v' + info.latest + '?\n\n' + info.notes)) return;
+      const proceed = await confirmUpdateModal(info);
+      if (!proceed) return;
       setStatus('Downloading…');
       showToast('Downloading update v' + info.latest + '…');
       await invoke('apply_update', { url: info.url });

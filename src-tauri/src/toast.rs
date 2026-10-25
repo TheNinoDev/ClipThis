@@ -40,6 +40,70 @@ struct ToastWindow {
 static TOAST_TEXT: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
 static TOAST_WINDOWS: std::sync::Mutex<Vec<ToastWindow>> = std::sync::Mutex::new(Vec::new());
 static ANIM_STATE: std::sync::Mutex<AnimState> = std::sync::Mutex::new(AnimState::Hidden);
+static CHIME_WAV: std::sync::OnceLock<Vec<u8>> = std::sync::OnceLock::new();
+
+#[link(name = "winmm")]
+extern "system" {
+    fn PlaySoundW(psz_sound: *const u8, hmod: *mut core::ffi::c_void, fdw_sound: u32) -> i32;
+}
+
+const SND_ASYNC: u32 = 0x0001;
+const SND_NODEFAULT: u32 = 0x0002;
+const SND_MEMORY: u32 = 0x0004;
+
+fn play_toast_sound() {
+    let wav = CHIME_WAV.get_or_init(|| {
+        const SAMPLE_RATE: u32 = 44100;
+        const DURATION_SECS: f32 = 0.22;
+        let num_samples = (SAMPLE_RATE as f32 * DURATION_SECS) as usize;
+        let mut pcm: Vec<i16> = Vec::with_capacity(num_samples);
+
+        for i in 0..num_samples {
+            let t = i as f32 / SAMPLE_RATE as f32;
+            // Two-tone warm chime:
+            // Tone 1: 587.33 Hz (D5) - soft warm ping
+            let env1 = (-24.0 * t).exp() * (1.0 - (-1500.0 * t).exp());
+            let tone1 = (2.0 * std::f32::consts::PI * 587.33 * t).sin() * 0.45;
+
+            // Tone 2: 880.0 Hz (A5) - clear bell chime starting at 35ms
+            let mut tone2 = 0.0;
+            if t >= 0.035 {
+                let t2 = t - 0.035;
+                let env2 = (-18.0 * t2).exp() * (1.0 - (-1200.0 * t2).exp());
+                tone2 = ((2.0 * std::f32::consts::PI * 880.0 * t2).sin() * 0.6
+                      + (2.0 * std::f32::consts::PI * 1760.0 * t2).sin() * 0.12) * env2;
+            }
+
+            let sample = (tone1 * env1 + tone2).clamp(-1.0, 1.0);
+            pcm.push((sample * 0.42 * 32767.0) as i16);
+        }
+
+        let mut wav = Vec::with_capacity(44 + pcm.len() * 2);
+        let data_size = (pcm.len() * 2) as u32;
+        let riff_size = 36 + data_size;
+        wav.extend_from_slice(b"RIFF");
+        wav.extend_from_slice(&riff_size.to_le_bytes());
+        wav.extend_from_slice(b"WAVEfmt ");
+        wav.extend_from_slice(&16u32.to_le_bytes());
+        wav.extend_from_slice(&1u16.to_le_bytes());
+        wav.extend_from_slice(&1u16.to_le_bytes());
+        wav.extend_from_slice(&SAMPLE_RATE.to_le_bytes());
+        let byte_rate = SAMPLE_RATE * 2;
+        wav.extend_from_slice(&byte_rate.to_le_bytes());
+        wav.extend_from_slice(&2u16.to_le_bytes());
+        wav.extend_from_slice(&16u16.to_le_bytes());
+        wav.extend_from_slice(b"data");
+        wav.extend_from_slice(&data_size.to_le_bytes());
+        for s in pcm {
+            wav.extend_from_slice(&s.to_le_bytes());
+        }
+        wav
+    });
+
+    unsafe {
+        PlaySoundW(wav.as_ptr(), std::ptr::null_mut(), SND_MEMORY | SND_ASYNC | SND_NODEFAULT);
+    }
+}
 
 #[derive(Clone, Copy)]
 pub struct ToastService;
@@ -60,6 +124,7 @@ impl ToastService {
                 unsafe {
                     let _ = PostMessageW(hwnd, WM_SHOW, WPARAM(0), LPARAM(0));
                 }
+                play_toast_sound();
                 return;
             }
             drop(guard);
