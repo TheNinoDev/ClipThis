@@ -219,6 +219,11 @@ fn hide_to_tray(window: tauri::Window, state: State<AppState>) {
 }
 
 #[tauri::command]
+fn show_toast(state: State<AppState>, msg: String) {
+    state.toast.show(&msg);
+}
+
+#[tauri::command]
 fn list_clips(state: State<AppState>) -> Result<Vec<ClipFolderDto>, String> {
     let settings = state.settings.lock().unwrap().clone();
     let base = std::path::PathBuf::from(&settings.output_dir);
@@ -863,6 +868,9 @@ fn main() {
         }
     }
     let settings = load_settings();
+    if settings.autostart {
+        let _ = capture::set_autostart(true);
+    }
     let manager = CaptureManager::new(settings.clip_seconds);
     if settings.capture_mic {
         manager.start_mic(settings.clip_seconds);
@@ -997,6 +1005,8 @@ fn main() {
             // User start → show window. Autostart → stay in tray.
             if !is_autostart {
                 open_window(app.handle());
+            } else {
+                toast_handle.show("ClipThis running in background");
             }
 
             // Check for updates in background on startup
@@ -1022,7 +1032,7 @@ fn main() {
                 hide_and_release(window);
             }
         })
-        .invoke_handler(tauri::generate_handler![get_settings, set_settings, reset_settings, trigger_clip, list_processes, pick_folder, hide_to_tray, get_version, check_update, apply_update, list_clips, enrich_clip, play_clip, stop_clip, playback_state, pause_clip, resume_clip, set_playback_volume, seek_clip, transcribe_clip])
+        .invoke_handler(tauri::generate_handler![get_settings, set_settings, reset_settings, trigger_clip, list_processes, pick_folder, hide_to_tray, get_version, check_update, apply_update, list_clips, enrich_clip, play_clip, stop_clip, playback_state, pause_clip, resume_clip, set_playback_volume, seek_clip, transcribe_clip, show_toast])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|_app, event| {

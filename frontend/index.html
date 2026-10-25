@@ -243,81 +243,6 @@
   }
 
   /* =========================================================================
-     IN-APP TOAST POPUP (MATCHING NATIVE WIN32 TOAST & FIGMA DESIGN)
-     ========================================================================= */
-  .toast-popup {
-    position: absolute;
-    bottom: 58px;
-    left: 50%;
-    transform: translateX(-50%) translateY(14px) scale(0.96);
-    opacity: 0;
-    pointer-events: none;
-    background: #1D1F29;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 14px;
-    padding: 7px 14px 7px 11px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6);
-    z-index: 1000;
-    transition: opacity .2s cubic-bezier(.2,.8,.3,1), transform .2s cubic-bezier(.2,.8,.3,1);
-    max-width: 85%;
-    cursor: pointer;
-  }
-  .toast-popup.visible {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0) scale(1);
-    pointer-events: auto;
-  }
-  .toast-accent-pill {
-    width: 4px;
-    height: 26px;
-    border-radius: 999px;
-    background: #5B8CFF;
-    flex-shrink: 0;
-  }
-  .toast-content {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    min-width: 0;
-  }
-  .toast-badge {
-    font-size: 10px;
-    font-weight: 700;
-    color: #5B8CFF;
-    letter-spacing: .5px;
-    text-transform: uppercase;
-  }
-  .toast-msg {
-    font-size: 12px;
-    font-weight: 500;
-    color: #FFFFFF;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .toast-close {
-    background: none;
-    border: none;
-    color: var(--muted);
-    font-size: 16px;
-    line-height: 1;
-    padding: 0 4px;
-    cursor: pointer;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color .15s;
-    margin-left: 2px;
-  }
-  .toast-close:hover {
-    color: #FFFFFF;
-  }
-
-  /* =========================================================================
      CLIPS & PLAYER UI (FIGMA AESTHETIC WITH REAL WAVEFORM)
      ========================================================================= */
   .clips-scroll-wrapper {
@@ -524,16 +449,6 @@
 </head>
 <body>
 <div class="app ready">
-  <!-- TOAST NOTIFICATION POPUP -->
-  <div class="toast-popup" id="toast-popup">
-    <div class="toast-accent-pill"></div>
-    <div class="toast-content">
-      <div class="toast-badge">ClipThis</div>
-      <div class="toast-msg" id="toast-msg">Ready</div>
-    </div>
-    <button class="toast-close" id="toast-close" type="button" aria-label="Dismiss" title="Dismiss">×</button>
-  </div>
-
   <!-- TITLEBAR -->
   <div class="titlebar" data-tauri-drag-region>
     <span class="brand" data-tauri-drag-region>Clip<span>This</span></span>
@@ -584,7 +499,6 @@
             <button data-v="wav16">WAV 16</button>
             <button data-v="flac">FLAC</button>
             <button data-v="aac">AAC</button>
-            <button data-v="adpcm">ADPCM</button>
           </div>
         </div>
       </div>
@@ -652,18 +566,9 @@
   const { invoke } = window.__TAURI__.core;
   const $ = (id) => document.getElementById(id);
 
-  // In-app animated toast banner
-  let _toastTimer = null;
+  // Native Win32 Toast notification service
   function showToast(msg) {
-    const el = $('toast-popup');
-    const txt = $('toast-msg');
-    if (!el || !txt) return;
-    txt.textContent = msg;
-    el.classList.add('visible');
-    clearTimeout(_toastTimer);
-    _toastTimer = setTimeout(() => {
-      el.classList.remove('visible');
-    }, 2800);
+    invoke('show_toast', { msg }).catch(() => {});
   }
 
   const setStatus = (msg, kind) => {
@@ -800,7 +705,7 @@
     const clipOption = clipSelect.querySelector('.select-option[data-value="' + (s.clip_seconds || 30) + '"]') || clipSelect.querySelector('.select-option[data-value="30"]');
     clipSelect.querySelectorAll('.select-option').forEach((x) => x.classList.toggle('selected', x === clipOption));
     clipTrigger.textContent = clipOption.textContent;
-    const fmt = s.format === 'wav' ? 'wav32' : s.format;
+    const fmt = (s.format === 'wav' || s.format === 'wav32') ? 'wav32' : (s.format === 'adpcm' ? 'aac' : s.format);
     [...$('format').children].forEach((b) => b.classList.toggle('on', b.dataset.v === fmt));
     $('autostart').classList.toggle('on', !!s.autostart);
     $('notify_clip').classList.toggle('on', s.notify_clip !== false);
@@ -1182,9 +1087,10 @@
         showToast('ClipThis is up to date');
         return;
       }
-      if (!confirm('Update to ' + info.latest + '?\n\n' + info.notes)) return;
+      showToast('Update v' + info.latest + ' available!');
+      if (!confirm('Update to v' + info.latest + '?\n\n' + info.notes)) return;
       setStatus('Downloading…');
-      showToast('Downloading update…');
+      showToast('Downloading update v' + info.latest + '…');
       await invoke('apply_update', { url: info.url });
     } catch (e) {
       setStatus('Update failed: ' + e, 'err');
@@ -1217,34 +1123,11 @@
     $('ver').textContent = 'ClipThis v' + info.current + ' (v' + info.latest + ' available!)';
   }
 
-  const toastPopup = $('toast-popup');
-  const toastClose = $('toast-close');
-  if (toastClose) {
-    toastClose.onclick = (e) => {
-      e.stopPropagation();
-      clearTimeout(_toastTimer);
-      toastPopup?.classList.remove('visible');
-    };
-  }
-  if (toastPopup) {
-    toastPopup.onclick = (e) => {
-      if (e.target.closest('#toast-close')) return;
-      const txt = $('toast-msg')?.textContent || '';
-      if (txt.toLowerCase().includes('update')) {
-        const aboutTab = document.querySelector('.tab[data-tab="about"]');
-        if (aboutTab) aboutTab.click();
-      }
-      clearTimeout(_toastTimer);
-      toastPopup.classList.remove('visible');
-    };
-  }
-
   // Listen for backend background update detection
   if (window.__TAURI__?.event?.listen) {
     window.__TAURI__.event.listen('update-available', (e) => {
       const info = e.payload;
       if (info) {
-        showToast('New version available: v' + info.latest);
         markUpdateAvailable(info);
       }
     });
@@ -1255,12 +1138,11 @@
   refreshProcs();
   setInterval(refreshProcs, 3000);
 
-  // Check for updates on startup/open with a brief toast if available
+  // Check for updates on startup/open to mark UI if available
   setTimeout(async () => {
     try {
       const info = await invoke('check_update');
       if (info && info.latest) {
-        showToast('New version available: v' + info.latest);
         markUpdateAvailable(info);
       }
     } catch (_) {}

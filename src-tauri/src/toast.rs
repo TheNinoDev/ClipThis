@@ -52,10 +52,18 @@ impl ToastService {
 
     pub fn show(&self, msg: &str) {
         *TOAST_TEXT.lock().unwrap() = msg.to_string();
-        if let Some(first) = TOAST_WINDOWS.lock().unwrap().first() {
-            unsafe {
-                let _ = PostMessageW(HWND(first.hwnd as *mut _), WM_SHOW, WPARAM(0), LPARAM(0));
+        for _ in 0..16 {
+            let guard = TOAST_WINDOWS.lock().unwrap();
+            if let Some(first) = guard.first() {
+                let hwnd = HWND(first.hwnd as *mut _);
+                drop(guard);
+                unsafe {
+                    let _ = PostMessageW(hwnd, WM_SHOW, WPARAM(0), LPARAM(0));
+                }
+                return;
             }
+            drop(guard);
+            std::thread::sleep(std::time::Duration::from_millis(50));
         }
     }
 }

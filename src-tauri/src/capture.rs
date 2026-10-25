@@ -326,7 +326,6 @@ impl CaptureManager {
                     writer.finalize().map_err(|e| e.to_string())?;
                 }
                 "wav16" => crate::codec::write_wav_i16(&path, &track.samples, track.sr, track.ch)?,
-                "adpcm" => crate::codec::write_ima_adpcm(&path, &track.samples, track.sr, track.ch)?,
                 "aac" => crate::codec_aac::write_aac(&path, &track.samples, track.sr, track.ch)?,
                 _ => crate::codec::write_wav_f32(&path, &track.samples, track.sr, track.ch)?,
             }
@@ -385,6 +384,9 @@ pub fn set_autostart(enabled: bool) -> Result<(), String> {
     use windows::Win32::System::Registry::*;
     use windows::core::PCWSTR;
     let subkey: Vec<u16> = "Software\\Microsoft\\Windows\\CurrentVersion\\Run\0".encode_utf16().collect();
+    let approved_subkey: Vec<u16> = "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\Run\0".encode_utf16().collect();
+    let name: Vec<u16> = "ClipThis\0".encode_utf16().collect();
+
     let mut hkey = HKEY::default();
     unsafe {
         let res = RegOpenKeyExW(HKEY_CURRENT_USER, PCWSTR(subkey.as_ptr()), 0, KEY_SET_VALUE, &mut hkey);
@@ -395,17 +397,28 @@ pub fn set_autostart(enabled: bool) -> Result<(), String> {
             let exe = std::env::current_exe().map_err(|e| e.to_string())?;
             let valstr = format!("\"{}\" --autostart\0", exe.display());
             let val: Vec<u16> = valstr.encode_utf16().collect();
-            let name: Vec<u16> = "ClipThis\0".encode_utf16().collect();
             let bytes: Vec<u8> = val.iter().flat_map(|c| c.to_le_bytes()).collect();
             let r = RegSetValueExW(hkey, PCWSTR(name.as_ptr()), 0, REG_SZ, Some(&bytes));
             let _ = RegCloseKey(hkey);
             if r.is_err() {
                 return Err(format!("{:?}", r));
             }
+
+            let mut app_key = HKEY::default();
+            if RegOpenKeyExW(HKEY_CURRENT_USER, PCWSTR(approved_subkey.as_ptr()), 0, KEY_SET_VALUE, &mut app_key).is_ok() {
+                let enabled_binary = [2u8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                let _ = RegSetValueExW(app_key, PCWSTR(name.as_ptr()), 0, REG_BINARY, Some(&enabled_binary));
+                let _ = RegCloseKey(app_key);
+            }
         } else {
-            let name: Vec<u16> = "ClipThis\0".encode_utf16().collect();
             let _ = RegDeleteValueW(hkey, PCWSTR(name.as_ptr()));
             let _ = RegCloseKey(hkey);
+
+            let mut app_key = HKEY::default();
+            if RegOpenKeyExW(HKEY_CURRENT_USER, PCWSTR(approved_subkey.as_ptr()), 0, KEY_SET_VALUE, &mut app_key).is_ok() {
+                let _ = RegDeleteValueW(app_key, PCWSTR(name.as_ptr()));
+                let _ = RegCloseKey(app_key);
+            }
         }
     }
     Ok(())
