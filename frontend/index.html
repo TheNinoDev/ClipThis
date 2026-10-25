@@ -18,16 +18,33 @@
     --surface-pill: #14151c;
     --surface-2: #212433;
     --border: rgba(255, 255, 255, 0.08);
+    --border-hover: rgba(255, 255, 255, 0.16);
     --text: #ffffff;
-    --muted: #8d92a5;
-    --accent: #5b8cff;
-    --accent-hover: #719bff;
-    --accent-soft: rgba(91, 140, 255, 0.16);
+    --text-secondary: #c2c6d6;
+    --muted: #959ab0;
+    --accent: #2f6bf2;
+    --accent-hover: #265de6;
+    --accent-active: #1f50cb;
+    --accent-fg: #6497ff;
+    --accent-soft: rgba(47, 107, 242, 0.18);
     --track: #3b4051;
+    --track-played: #457bf6;
     --radius: 12px;
+    --success: #45c464;
+    --danger: #ef5350;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  ::selection {
+    background: rgba(47, 107, 242, 0.38);
+    color: #ffffff;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent-fg);
+    outline-offset: 2px;
+  }
 
   .app.ready .titlebar, .app.ready .tabs { animation: dropIn .32s cubic-bezier(.22,.8,.3,1) both; }
   .app.ready .panel { animation: riseIn .36s .04s cubic-bezier(.22,.8,.3,1) both; }
@@ -44,18 +61,19 @@
     font-size: 13px;
     -webkit-font-smoothing: antialiased;
     user-select: none;
+    caret-color: var(--accent-fg);
   }
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 999px; }
-  ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.22); }
+  ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.16); border-radius: 999px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.28); }
 
   .app { display: flex; flex-direction: column; height: 100%; background: var(--bg); position: relative; }
 
   /* TITLEBAR (CLEAN DISTINCT DISPLAY TYPOGRAPHY) */
   .titlebar {
     display: flex; align-items: center; gap: 10px;
-    height: 38px; padding: 0 10px 0 16px;
+    height: 42px; padding: 6px 10px 6px 16px;
     background: var(--bg);
     border-bottom: 1px solid var(--border);
     flex: 0 0 auto;
@@ -71,9 +89,9 @@
     gap: 1px;
   }
   .titlebar .brand span {
-    color: var(--accent);
+    color: var(--accent-fg);
   }
-  .titlebar .spacer { flex: 1; height: 100%; cursor: grab; }
+  .titlebar .spacer { flex: 1; min-height: 24px; cursor: grab; }
   .iconbtn {
     width: 28px; height: 26px; border: 1px solid transparent; border-radius: 8px;
     background: transparent; color: var(--muted); cursor: pointer;
@@ -92,7 +110,7 @@
   }
   .tab {
     flex: 1; border: none; background: transparent;
-    color: rgba(255, 255, 255, 0.45);
+    color: var(--muted);
     font-family: inherit;
     font-size: 13px;
     font-weight: 600;
@@ -102,7 +120,7 @@
     transition: color .15s, border-color .15s;
   }
   .tab:hover { color: #fff; }
-  .tab.on { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab.on { color: var(--accent-fg); border-bottom-color: var(--accent-fg); }
 
   /* PANELS */
   .panel {
@@ -119,17 +137,17 @@
   .card-container {
     background: var(--surface);
     border-radius: 20px;
-    padding: 10px 14px;
+    padding: 12px 16px;
     border: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
   }
   .section-title {
     font-family: inherit;
     font-size: 13px;
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--text-secondary);
     padding: 4px 6px;
   }
   .row {
@@ -139,9 +157,9 @@
   .row:hover { background: rgba(255, 255, 255, 0.02); }
   .row .lead {
     width: 125px; flex: 0 0 125px;
-    font-size: 12.5px; font-weight: 500; color: #f0f0f5;
+    font-size: 13px; font-weight: 500; color: #f0f0f5;
   }
-  .row .lead small { display: block; font-size: 10.5px; color: var(--muted); font-weight: 400; margin-top: 1px; }
+  .row .lead small { display: block; font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 1px; }
   .row .ctl { flex: 1; min-width: 0; display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
 
   input[type="text"] {
@@ -151,8 +169,8 @@
     font: inherit; font-size: 12px; outline: none;
     transition: border-color .15s, box-shadow .15s;
   }
-  input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-  input[type="text"]::placeholder { color: #616575; }
+  input[type="text"]:focus { border-color: var(--accent-fg); box-shadow: 0 0 0 3px var(--accent-soft); }
+  input[type="text"]::placeholder { color: #8e94a8; }
   input[type="text"][readonly] { cursor: pointer; }
 
   .custom-select { position: relative; width: 140px; }
@@ -167,7 +185,7 @@
     border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted);
     transform: rotate(45deg); transition: transform .15s;
   }
-  .custom-select.open .select-trigger { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .custom-select.open .select-trigger { border-color: var(--accent-fg); box-shadow: 0 0 0 3px var(--accent-soft); }
   .custom-select.open .select-trigger::after { transform: rotate(225deg) translate(-2px,-2px); }
   .select-menu {
     display: none; position: absolute; z-index: 50; left: 0; right: 0; top: 36px;
@@ -175,71 +193,78 @@
     box-shadow: 0 12px 30px rgba(0,0,0,.5);
   }
   .custom-select.open .select-menu { display: block; }
-  .select-option { padding: 7px 10px; border-radius: 7px; color: var(--muted); cursor: pointer; font-size: 12px; }
+  .select-option { padding: 7px 10px; border-radius: 7px; color: var(--text-secondary); cursor: pointer; font-size: 12px; }
   .select-option:hover, .select-option.selected { color: #fff; background: var(--accent); }
 
   .seg { display: inline-flex; padding: 3px; gap: 3px; background: var(--surface-pill); border: 1px solid var(--border); border-radius: 10px; }
   .seg button {
     border: none; background: transparent; color: var(--muted);
-    font: inherit; font-size: 11.5px; padding: 4px 8px; border-radius: 7px; cursor: pointer;
+    font: inherit; font-size: 12px; padding: 4px 8px; border-radius: 7px; cursor: pointer;
     transition: background .12s, color .12s;
   }
+  .seg button:hover { color: #fff; }
   .seg button.on { background: var(--accent); color: #fff; font-weight: 600; }
 
   .switch {
-    position: relative; width: 40px; height: 22px; flex: 0 0 40px;
+    position: relative; width: 42px; height: 24px; flex: 0 0 42px;
     border-radius: 999px; border: 1px solid var(--border);
     background: var(--surface-pill); cursor: pointer; padding: 0;
     transition: background .15s, border-color .15s;
   }
   .switch::after {
-    content: ""; position: absolute; top: 2px; left: 2px;
+    content: ""; position: absolute; top: 3px; left: 3px;
     width: 16px; height: 16px; border-radius: 50%;
-    background: #7a7e8e; transition: transform .15s, background .15s;
+    background: var(--muted); transition: transform .15s, background .15s;
   }
   .switch.on { background: var(--accent); border-color: var(--accent); }
   .switch.on::after { transform: translateX(18px); background: #fff; }
 
   .btn {
-    height: 30px; padding: 0 14px; border-radius: 999px; cursor: pointer;
+    height: 32px; padding: 0 16px; border-radius: 999px; cursor: pointer;
     background: var(--surface-pill); color: #f0f0f5;
     border: 1px solid var(--border); font: inherit; font-size: 12px; font-weight: 500;
-    white-space: nowrap; transition: background .12s, color .12s, transform .08s;
+    white-space: nowrap; transition: background .12s, color .12s, transform .08s, border-color .12s;
   }
-  .btn:hover { background: var(--surface-2); color: #fff; }
+  .btn:hover { background: var(--surface-2); color: #fff; border-color: var(--border-hover); }
   .btn:active { transform: scale(0.97); }
   .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-  .btn.primary:hover { background: var(--accent-hover); }
+  .btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  .btn.primary:active { background: var(--accent-active); }
 
   .divider { height: 1px; background: var(--border); margin: 6px 0; }
 
   /* FOOTER */
   .footer {
-    display: flex; align-items: center; gap: 10px; padding: 7px 16px 9px;
+    display: flex; align-items: center; gap: 10px; padding: 8px 16px 10px;
     border-top: 1px solid var(--border); background: var(--bg);
     flex: 0 0 auto;
   }
   .footer .status {
     flex: 1; font-family: inherit; font-size: 12.5px; font-weight: 500;
-    color: rgba(255, 255, 255, 0.45); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    letter-spacing: .2px;
+    color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    letter-spacing: .2px; font-variant-numeric: tabular-nums;
   }
-  .footer .status.ok { color: #56c271; }
-  .footer .status.err { color: #e56767; }
+  .footer .status.ok { color: var(--success); }
+  .footer .status.err { color: var(--danger); }
   .footer .btn#clip {
     font-family: inherit; font-size: 13px; font-weight: 600; letter-spacing: .3px;
     background: var(--accent); border-color: var(--accent); color: #fff;
     padding: 0 20px; height: 32px;
   }
-  .footer .btn#clip:hover { background: var(--accent-hover); }
+  .footer .btn#clip:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  .footer .btn#clip:active { background: var(--accent-active); }
 
   .proc-list { padding: 2px 0; max-height: 160px; overflow-y: auto; }
   .proc-item { padding: 6px 10px; font-size: 12px; color: var(--text); border-radius: 8px; display: flex; align-items: center; }
   .proc-item:hover { background: rgba(255,255,255,0.03); }
-  .proc-item .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #56c271; margin-right: 8px; flex-shrink: 0; }
+  .proc-item .dot {
+    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--success); margin-right: 8px; flex-shrink: 0;
+    box-shadow: 0 0 6px rgba(69, 196, 100, 0.4);
+  }
   .empty {
-    padding: 36px 10px; text-align: center; color: rgba(255, 255, 255, 0.4);
-    font-family: inherit; font-size: 13.5px; font-weight: 500; letter-spacing: .2px;
+    padding: 36px 10px; text-align: center; color: var(--muted);
+    font-family: inherit; font-size: 13px; font-weight: 500; letter-spacing: .2px;
   }
 
   /* CUSTOM UPDATE MODAL */
@@ -283,13 +308,13 @@
     align-items: center;
   }
   .modal-badge {
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
-    color: #5B8CFF;
-    background: rgba(91, 140, 255, 0.12);
-    border: 1px solid rgba(91, 140, 255, 0.24);
+    color: var(--accent-fg);
+    background: var(--accent-soft);
+    border: 1px solid rgba(100, 151, 255, 0.3);
     border-radius: 999px;
-    padding: 2px 9px;
+    padding: 3px 10px;
     letter-spacing: .5px;
     text-transform: uppercase;
   }
@@ -301,12 +326,12 @@
   }
   .modal-subtitle {
     font-size: 12px;
-    color: rgba(255, 255, 255, 0.6);
-    line-height: 1.4;
+    color: var(--text-secondary);
+    line-height: 1.45;
   }
   .modal-notes {
     background: #0E0F14;
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 10px;
     padding: 10px 12px;
     font-size: 12px;
@@ -338,7 +363,7 @@
   }
   .modal-btn.secondary {
     background: #232532;
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--text-secondary);
     border: 1px solid rgba(255, 255, 255, 0.08);
   }
   .modal-btn.secondary:hover {
@@ -346,12 +371,15 @@
     color: #FFFFFF;
   }
   .modal-btn.primary {
-    background: #5B8CFF;
+    background: var(--accent);
     color: #FFFFFF;
     font-weight: 600;
   }
   .modal-btn.primary:hover {
-    background: #4878EB;
+    background: var(--accent-hover);
+  }
+  .modal-btn.primary:active {
+    background: var(--accent-active);
   }
 
   /* =========================================================================
@@ -389,7 +417,7 @@
   .clip-card-count {
     font-family: 'Jaro', sans-serif;
     font-size: 14px;
-    color: rgba(255, 255, 255, 0.3);
+    color: var(--muted);
     letter-spacing: .3px;
   }
   .clip-card-separator {
@@ -414,15 +442,15 @@
     transition: background .15s, border-color .15s;
   }
   .player-pill:last-child { margin-bottom: 0; }
-  .player-pill:hover { border-color: rgba(91, 140, 255, 0.2); }
+  .player-pill:hover { border-color: rgba(100, 151, 255, 0.25); }
 
-  /* FIGMA: 68x68 Circular Play/Pause button (fills: #5B8CFF, rx: 31) */
+  /* FIGMA: 68x68 Circular Play/Pause button (rx: 31) */
   .play-circle-btn {
     width: 68px;
     height: 68px;
     flex: 0 0 68px;
     border-radius: 31px;
-    background: #5B8CFF;
+    background: var(--accent);
     border: none;
     cursor: pointer;
     display: flex;
@@ -433,8 +461,8 @@
     transition: background .15s, transform .1s;
     outline: none;
   }
-  .play-circle-btn:hover { background: #6c98ff; }
-  .play-circle-btn:active { transform: scale(0.95); }
+  .play-circle-btn:hover { background: var(--accent-hover); }
+  .play-circle-btn:active { background: var(--accent-active); transform: scale(0.95); }
 
   /* FIGMA SVGs for Play and Pause */
   .play-circle-btn svg { display: block; }
@@ -481,6 +509,7 @@
     width: 100%;
     padding: 1px 0;
     position: relative;
+    border-radius: 4px;
   }
   .wave-bar {
     flex: 1;
@@ -493,7 +522,10 @@
     pointer-events: none;
   }
   .wave-bar.played {
-    background: #5B8CFF; /* Figma active wave color #5B8CFF */
+    background: var(--track-played);
+  }
+  .waveform-container:hover .wave-bar:not(.played) {
+    background: #4e556b;
   }
 
   /* FIGMA: Bottom row with Time ("30 / 30 sec") and Volume slider with volume icon */
@@ -504,13 +536,14 @@
     width: 100%;
   }
 
-  /* FIGMA: Time text (font: Jaro, 13px, color: white, opacity: 0.49) */
+  /* FIGMA: Time text (font: Jaro, 13.5px, tabular-nums) */
   .player-time {
     font-family: 'Jaro', sans-serif;
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.49);
+    font-size: 13.5px;
+    color: var(--muted);
     letter-spacing: .2px;
     white-space: nowrap;
+    font-variant-numeric: tabular-nums;
   }
 
   /* VOLUME SLIDER WITH VOLUME ICON AT LEFT */
@@ -519,22 +552,33 @@
     align-items: center;
     gap: 7px;
   }
+  .volume-mute-btn {
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+    border-radius: 4px;
+  }
   .volume-icon {
     width: 14px;
     height: 14px;
     flex: 0 0 14px;
-    color: rgba(255, 255, 255, 0.45);
+    color: var(--muted);
     transition: color .15s ease;
   }
-  .volume-wrapper:hover .volume-icon {
-    color: var(--accent);
+  .volume-wrapper:hover .volume-icon, .volume-mute-btn:hover .volume-icon {
+    color: var(--accent-fg);
   }
   .volume-slider {
     -webkit-appearance: none;
     appearance: none;
     width: 68px;
     height: 4px;
-    background: #3B4051;
+    background: var(--track);
     border-radius: 999px;
     outline: none;
     cursor: pointer;
@@ -545,24 +589,25 @@
   .volume-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 13px;
-    height: 13px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
-    background: #5B8CFF;
+    background: var(--accent-fg);
     cursor: pointer;
     border: none;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
-    transition: transform .1s ease;
+    transition: transform .1s ease, background .15s;
   }
   .volume-slider::-webkit-slider-thumb:hover {
     transform: scale(1.2);
+    background: #7ca7ff;
   }
 </style>
 </head>
 <body>
 <div class="app ready">
   <!-- CUSTOM UPDATE MODAL -->
-  <div class="modal-backdrop" id="update-modal">
+  <div class="modal-backdrop" id="update-modal" role="dialog" aria-modal="true" aria-labelledby="modal-update-title">
     <div class="modal-card">
       <div class="modal-badge-row">
         <span class="modal-badge">Update Available</span>
@@ -581,39 +626,39 @@
   <div class="titlebar" data-tauri-drag-region>
     <span class="brand" data-tauri-drag-region>Clip<span>This</span></span>
     <div class="spacer" data-tauri-drag-region></div>
-    <button class="iconbtn" id="minbtn" title="Minimize to tray">
+    <button class="iconbtn" id="minbtn" title="Minimize to tray" aria-label="Minimize to tray">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
     </button>
   </div>
 
   <!-- TABS -->
-  <div class="tabs">
-    <button class="tab on" data-tab="capture">Capture</button>
-    <button class="tab" data-tab="clips">Clips</button>
-    <button class="tab" data-tab="settings">Settings</button>
-    <button class="tab" data-tab="about">About</button>
+  <div class="tabs" role="tablist" aria-label="Navigation">
+    <button class="tab on" data-tab="capture" role="tab" id="tab-btn-capture" aria-selected="true" aria-controls="tab-capture">Capture</button>
+    <button class="tab" data-tab="clips" role="tab" id="tab-btn-clips" aria-selected="false" aria-controls="tab-clips">Clips</button>
+    <button class="tab" data-tab="settings" role="tab" id="tab-btn-settings" aria-selected="false" aria-controls="tab-settings">Settings</button>
+    <button class="tab" data-tab="about" role="tab" id="tab-btn-about" aria-selected="false" aria-controls="tab-about">About</button>
   </div>
 
   <!-- CAPTURE TAB -->
-  <div class="panel on" id="tab-capture">
+  <div class="panel on" id="tab-capture" role="tabpanel" aria-labelledby="tab-btn-capture">
     <div class="card-container">
       <div class="row">
         <div class="lead">Hotkey<small>Press to set</small></div>
         <div class="ctl">
-          <input type="text" id="hotkey" readonly placeholder="Click, then press keys" />
+          <input type="text" id="hotkey" readonly placeholder="Click, then press keys" aria-label="Recording Hotkey" />
         </div>
       </div>
       <div class="row">
         <div class="lead">Clip length</div>
         <div class="ctl">
           <div class="custom-select" id="clip-select">
-            <button class="select-trigger" id="clip-trigger" type="button">30 seconds</button>
-            <div class="select-menu">
-              <div class="select-option" data-value="10">10 seconds</div>
-              <div class="select-option" data-value="15">15 seconds</div>
-              <div class="select-option selected" data-value="30">30 seconds</div>
-              <div class="select-option" data-value="60">60 seconds</div>
-              <div class="select-option" data-value="120">120 seconds</div>
+            <button class="select-trigger" id="clip-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="Select clip length">30 seconds</button>
+            <div class="select-menu" role="listbox">
+              <div class="select-option" data-value="10" role="option">10 seconds</div>
+              <div class="select-option" data-value="15" role="option">15 seconds</div>
+              <div class="select-option selected" data-value="30" role="option">30 seconds</div>
+              <div class="select-option" data-value="60" role="option">60 seconds</div>
+              <div class="select-option" data-value="120" role="option">120 seconds</div>
             </div>
             <input type="hidden" id="clip_seconds" value="30" />
           </div>
@@ -622,17 +667,17 @@
       <div class="row">
         <div class="lead">Format</div>
         <div class="ctl">
-          <div class="seg" id="format">
-            <button data-v="wav32">WAV 32</button>
-            <button data-v="wav16">WAV 16</button>
-            <button data-v="flac">FLAC</button>
-            <button data-v="aac">AAC</button>
+          <div class="seg" id="format" role="radiogroup" aria-label="Audio format">
+            <button data-v="wav32" role="radio">WAV 32</button>
+            <button data-v="wav16" role="radio">WAV 16</button>
+            <button data-v="flac" role="radio">FLAC</button>
+            <button data-v="aac" role="radio">AAC</button>
           </div>
         </div>
       </div>
       <div class="row">
         <div class="lead">Mic</div>
-        <div class="ctl"><button class="switch" id="capture_mic" role="switch"></button></div>
+        <div class="ctl"><button class="switch" id="capture_mic" role="switch" aria-checked="false" aria-label="Capture microphone input"></button></div>
       </div>
     </div>
 
@@ -643,27 +688,27 @@
   </div>
 
   <!-- CLIPS TAB (FIGMA DESIGN) -->
-  <div class="panel" id="tab-clips">
+  <div class="panel" id="tab-clips" role="tabpanel" aria-labelledby="tab-btn-clips">
     <div id="clips-list" class="clips-scroll-wrapper"></div>
   </div>
 
   <!-- SETTINGS TAB -->
-  <div class="panel" id="tab-settings">
+  <div class="panel" id="tab-settings" role="tabpanel" aria-labelledby="tab-btn-settings">
     <div class="card-container">
       <div class="row">
         <div class="lead">Output folder</div>
         <div class="ctl">
-          <input type="text" id="output_dir" />
+          <input type="text" id="output_dir" aria-label="Output directory" />
           <button class="btn" id="browse">Browse</button>
         </div>
       </div>
       <div class="row">
         <div class="lead">Autostart</div>
-        <div class="ctl"><button class="switch" id="autostart" role="switch"></button></div>
+        <div class="ctl"><button class="switch" id="autostart" role="switch" aria-checked="false" aria-label="Start ClipThis with Windows"></button></div>
       </div>
       <div class="row">
         <div class="lead">Notify on clip</div>
-        <div class="ctl"><button class="switch" id="notify_clip" role="switch"></button></div>
+        <div class="ctl"><button class="switch" id="notify_clip" role="switch" aria-checked="true" aria-label="Show notification on clip"></button></div>
       </div>
     </div>
     <div style="flex:1;"></div>
@@ -673,19 +718,29 @@
   </div>
 
   <!-- ABOUT TAB -->
-  <div class="panel" id="tab-about">
+  <div class="panel" id="tab-about" role="tabpanel" aria-labelledby="tab-btn-about">
+    <div class="card-container" style="align-items: center; text-align: center; padding: 22px 16px 18px; gap: 6px;">
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif; font-size: 20px; font-weight: 700; letter-spacing: .2px; color: #fff;">
+        Clip<span style="color: var(--accent-fg);">This</span>
+      </div>
+      <div id="ver" style="font-size: 13px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums;">
+        ClipThis
+      </div>
+      <div style="font-size: 12px; color: var(--text-secondary); max-width: 320px; line-height: 1.45; margin-top: 4px;">
+        Instant background audio rolling buffer & replay for Windows.
+      </div>
+    </div>
     <div class="card-container">
-      <div class="empty" id="ver">ClipThis</div>
       <div class="row">
-        <div class="lead">Update</div>
-        <div class="ctl"><button class="btn" id="update">Check for updates</button></div>
+        <div class="lead">Software updates<small>Check GitHub releases</small></div>
+        <div class="ctl"><button class="btn primary" id="update">Check for updates</button></div>
       </div>
     </div>
   </div>
 
   <!-- FOOTER -->
   <div class="footer">
-    <div class="status" id="status">Ready</div>
+    <div class="status" id="status" role="status" aria-live="polite">Ready</div>
     <button class="btn" id="clip">Clip now</button>
   </div>
 </div>
@@ -709,7 +764,11 @@
   let clipsSession = 0;
   document.querySelectorAll('.tab').forEach((t) => {
     t.onclick = () => {
-      document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('on', x === t));
+      document.querySelectorAll('.tab').forEach((x) => {
+        const isOn = x === t;
+        x.classList.toggle('on', isOn);
+        x.setAttribute('aria-selected', isOn ? 'true' : 'false');
+      });
       document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('on', p.id === 'tab-' + t.dataset.tab));
       if (t.dataset.tab === 'clips') {
         clipsSession++;
@@ -754,29 +813,74 @@
   // Switches
   function bindSwitch(id) {
     const el = $(id);
-    el.addEventListener('click', () => { el.classList.toggle('on'); autoSave(); });
+    el.setAttribute('aria-checked', el.classList.contains('on') ? 'true' : 'false');
+    el.addEventListener('click', () => {
+      const isOn = el.classList.toggle('on');
+      el.setAttribute('aria-checked', isOn ? 'true' : 'false');
+      autoSave();
+    });
     return () => el.classList.contains('on');
   }
   const isAutostart = bindSwitch('autostart');
   const isNotify = bindSwitch('notify_clip');
   const isMic = bindSwitch('capture_mic');
 
-  // Custom clip-length dropdown
+  // Custom clip-length dropdown with full keyboard access
   const clipSelect = $('clip-select');
   const clipTrigger = $('clip-trigger');
-  clipTrigger.onclick = () => clipSelect.classList.toggle('open');
+  clipTrigger.onclick = () => {
+    const isOpen = clipSelect.classList.toggle('open');
+    clipTrigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  };
+  clipTrigger.onkeydown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      clipSelect.classList.add('open');
+      clipTrigger.setAttribute('aria-expanded', 'true');
+      const selected = clipSelect.querySelector('.select-option.selected') || clipSelect.querySelector('.select-option');
+      if (selected) selected.focus();
+    } else if (e.key === 'Escape') {
+      clipSelect.classList.remove('open');
+      clipTrigger.setAttribute('aria-expanded', 'false');
+    }
+  };
   clipSelect.querySelectorAll('.select-option').forEach((option) => {
+    option.tabIndex = 0;
     option.onclick = () => {
       clipSelect.querySelectorAll('.select-option').forEach((x) => x.classList.remove('selected'));
       option.classList.add('selected');
       $('clip_seconds').value = option.dataset.value;
       clipTrigger.textContent = option.textContent;
       clipSelect.classList.remove('open');
+      clipTrigger.setAttribute('aria-expanded', 'false');
+      clipTrigger.focus();
       autoSave();
+    };
+    option.onkeydown = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        option.click();
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        const next = option.nextElementSibling;
+        if (next && next.classList.contains('select-option')) next.focus();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        const prev = option.previousElementSibling;
+        if (prev && prev.classList.contains('select-option')) prev.focus();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        clipSelect.classList.remove('open');
+        clipTrigger.setAttribute('aria-expanded', 'false');
+        clipTrigger.focus();
+      }
     };
   });
   document.addEventListener('click', (e) => {
-    if (!clipSelect.contains(e.target)) clipSelect.classList.remove('open');
+    if (!clipSelect.contains(e.target)) {
+      clipSelect.classList.remove('open');
+      clipTrigger.setAttribute('aria-expanded', 'false');
+    }
   });
 
   // Format segmented control
@@ -809,6 +913,11 @@
   window.addEventListener('keydown', (e) => {
     if (!capturing) return;
     e.preventDefault(); e.stopPropagation();
+    if (e.key === 'Escape') {
+      hotkeyInput.value = savedHotkey;
+      hotkeyInput.blur();
+      return;
+    }
     const parts = [];
     if (e.ctrlKey) parts.push('Ctrl');
     if (e.shiftKey) parts.push('Shift');
@@ -836,8 +945,11 @@
     const fmt = (s.format === 'wav' || s.format === 'wav32') ? 'wav32' : (s.format === 'adpcm' ? 'aac' : s.format);
     [...$('format').children].forEach((b) => b.classList.toggle('on', b.dataset.v === fmt));
     $('autostart').classList.toggle('on', !!s.autostart);
+    $('autostart').setAttribute('aria-checked', !!s.autostart ? 'true' : 'false');
     $('notify_clip').classList.toggle('on', s.notify_clip !== false);
+    $('notify_clip').setAttribute('aria-checked', s.notify_clip !== false ? 'true' : 'false');
     $('capture_mic').classList.toggle('on', !!s.capture_mic);
+    $('capture_mic').setAttribute('aria-checked', !!s.capture_mic ? 'true' : 'false');
   }
 
   // Active audio process listing
@@ -891,8 +1003,10 @@
     if (currentActivePlayerEl) {
       const playIcon = currentActivePlayerEl.querySelector('.icon-play');
       const pauseIcon = currentActivePlayerEl.querySelector('.icon-pause');
+      const playBtn = currentActivePlayerEl.querySelector('.play-circle-btn');
       if (playIcon) playIcon.style.display = 'block';
       if (pauseIcon) pauseIcon.style.display = 'none';
+      if (playBtn) playBtn.setAttribute('aria-label', 'Play');
     }
     currentActivePath = null;
     currentActivePlayerEl = null;
@@ -902,8 +1016,10 @@
     if (currentActivePlayerEl && currentActivePlayerEl !== playerEl) {
       const oldPlay = currentActivePlayerEl.querySelector('.icon-play');
       const oldPause = currentActivePlayerEl.querySelector('.icon-pause');
+      const oldBtn = currentActivePlayerEl.querySelector('.play-circle-btn');
       if (oldPlay) oldPlay.style.display = 'block';
       if (oldPause) oldPause.style.display = 'none';
+      if (oldBtn) oldBtn.setAttribute('aria-label', 'Play');
       // reset old player waveform
       currentActivePlayerEl.querySelectorAll('.wave-bar').forEach((b) => b.classList.remove('played'));
     }
@@ -912,8 +1028,10 @@
     currentActivePlayerEl = playerEl;
     const playIcon = playerEl.querySelector('.icon-play');
     const pauseIcon = playerEl.querySelector('.icon-pause');
+    const playBtn = playerEl.querySelector('.play-circle-btn');
     if (playIcon) playIcon.style.display = 'none';
     if (pauseIcon) pauseIcon.style.display = 'block';
+    if (playBtn) playBtn.setAttribute('aria-label', 'Pause');
 
     if (globalPlaybackTimer) clearInterval(globalPlaybackTimer);
 
@@ -1008,12 +1126,14 @@
                   <span class="player-time">-- / -- sec</span>
                   <div class="volume-wrapper">
                     <!-- Volume Speaker Icon -->
-                    <svg class="volume-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"></polygon>
-                      <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-                    </svg>
-                    <input class="volume-slider" type="range" min="0" max="1" step="0.01" value="1" title="Volume" />
+                    <button class="volume-mute-btn" type="button" aria-label="Mute or unmute audio" title="Mute/Unmute">
+                      <svg class="volume-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"></polygon>
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                      </svg>
+                    </button>
+                    <input class="volume-slider" type="range" min="0" max="1" step="0.01" value="1" title="Volume" aria-label="Playback volume" />
                   </div>
                 </div>
               </div>
@@ -1035,6 +1155,22 @@
         const pauseIcon = player.querySelector('.icon-pause');
         const waveform = player.querySelector('.waveform-container');
         const volume = player.querySelector('.volume-slider');
+        const muteBtn = player.querySelector('.volume-mute-btn');
+
+        let prevVolume = 1;
+        if (muteBtn) {
+          muteBtn.onclick = () => {
+            const cur = Number(volume.value);
+            if (cur > 0) {
+              prevVolume = cur;
+              volume.value = 0;
+              invoke('set_playback_volume', { volume: 0 }).catch(() => {});
+            } else {
+              volume.value = prevVolume > 0 ? prevVolume : 1;
+              invoke('set_playback_volume', { volume: Number(volume.value) }).catch(() => {});
+            }
+          };
+        }
 
         playBtn.onclick = async () => {
           if (currentActivePath === path) {
@@ -1043,10 +1179,12 @@
             if (isPlaying) {
               playIcon.style.display = 'block';
               pauseIcon.style.display = 'none';
+              playBtn.setAttribute('aria-label', 'Play');
               await invoke('pause_clip').catch(() => {});
             } else {
               playIcon.style.display = 'none';
               pauseIcon.style.display = 'block';
+              playBtn.setAttribute('aria-label', 'Pause');
               await invoke('resume_clip').catch(() => {});
             }
             return;
@@ -1222,8 +1360,17 @@
         cancelBtn.onclick = null;
         confirmBtn.onclick = null;
         modal.onclick = null;
+        window.removeEventListener('keydown', onKeyDown);
         resolve(result);
       }
+
+      function onKeyDown(e) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          cleanup(false);
+        }
+      }
+      window.addEventListener('keydown', onKeyDown);
 
       cancelBtn.onclick = (e) => { e.stopPropagation(); cleanup(false); };
       confirmBtn.onclick = (e) => { e.stopPropagation(); cleanup(true); };
@@ -1265,17 +1412,14 @@
       if (!aboutTab.querySelector('.update-dot')) {
         const dot = document.createElement('span');
         dot.className = 'update-dot';
-        dot.style.cssText = 'position:absolute;top:7px;right:7px;width:7px;height:7px;background:#5B8CFF;border-radius:50%;box-shadow:0 0 6px #5B8CFF;';
+        dot.style.cssText = 'position:absolute;top:8px;right:10px;width:7px;height:7px;background:var(--accent-fg);border-radius:50%;box-shadow:0 0 6px var(--accent-fg);';
         aboutTab.appendChild(dot);
       }
     }
     const updateBtn = $('update');
     if (updateBtn) {
       updateBtn.textContent = 'Update to v' + info.latest;
-      updateBtn.style.background = '#5B8CFF';
-      updateBtn.style.color = '#FFFFFF';
-      updateBtn.style.borderColor = 'transparent';
-      updateBtn.style.fontWeight = '600';
+      updateBtn.classList.add('primary');
     }
     $('ver').textContent = 'ClipThis v' + info.current + ' (v' + info.latest + ' available!)';
   }
